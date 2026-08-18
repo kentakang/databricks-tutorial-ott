@@ -1,0 +1,10 @@
+# Project-scoped Codex tools. Codex loads this file after the repository is trusted.
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@4.0.2"]
+enabled = true
+required = false
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+default_tools_approval_mode = "auto"

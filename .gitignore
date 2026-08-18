@@ -1,0 +1,34 @@
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+.databrickscfg
+*.pem
+*.key
+
+# Databricks local state and generated artifacts
+.databricks/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+
+# Codex and editor-local output
+.codex-log/
+.idea/
+.vscode/*.local.json
+
+# Operating system files
+.DS_Store
+Thumbs.db
