@@ -1,6 +1,6 @@
 # Development environment
 
-This repository is prepared for Databricks App ideation and implementation with Codex. The application framework is intentionally not selected yet; choose it only after documenting the product and data requirements.
+This repository is prepared for Databricks App ideation and implementation with Codex. The application framework is intentionally not selected yet; choose it only after documenting the product and data requirements in `docs/IDEATION.md`.
 
 ## Required local tools
 
