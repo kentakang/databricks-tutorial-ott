@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+git diff --cached --check
+
+blocked_paths=$(
+  git diff --cached --name-only --diff-filter=ACMR |
+    grep -E '(^|/)(\.env($|\.)|\.databrickscfg$)|\.(pem|key)$' |
+    grep -Ev '(^|/)\.env\.example$' || true
+)
+
+if [ -n "$blocked_paths" ]; then
+  echo "Refusing to commit files that may contain credentials:" >&2
+  printf '%s\n' "$blocked_paths" >&2
+  exit 1
+fi
+
+if git grep --cached -n -I -E '^(<<<<<<< |=======|>>>>>>> )' -- .; then
+  echo "Refusing to commit unresolved merge-conflict markers." >&2
+  exit 1
+fi

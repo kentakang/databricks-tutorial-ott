@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+
+message_file=$1
+header=$(sed -n '1p' "$message_file")
+pattern='^(feat|fix|docs|refactor|test|perf|build|ci|chore|style|revert)(\([A-Za-z0-9._/-]+\))?!?: [^[:space:]].+$'
+
+if ! printf '%s\n' "$header" | grep -Eq "$pattern"; then
+  cat >&2 <<'EOF'
+Commit message must follow Conventional Commits:
+  <type>(optional-scope): <imperative summary>
+
+Allowed types: feat, fix, docs, refactor, test, perf, build, ci,
+chore, style, revert
+Example: feat(search): add title filtering
+EOF
+  exit 1
+fi
+
+header_length=$(printf '%s' "$header" | wc -c | tr -d ' ')
+if [ "$header_length" -gt 100 ]; then
+  echo "Commit header must not exceed 100 characters (found $header_length)." >&2
+  exit 1
+fi

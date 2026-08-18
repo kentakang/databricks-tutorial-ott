@@ -12,7 +12,13 @@ This repository is prepared for Databricks App ideation and implementation with 
 
 Docker is optional and is useful only when a selected architecture needs a local dependency.
 
-Run the environment check from the repository root:
+Run the one-time repository bootstrap after cloning. It checks the environment and enables the versioned Git hooks and commit template:
+
+```powershell
+pwsh ./scripts/bootstrap.ps1
+```
+
+Run only the environment check at any time with:
 
 ```powershell
 pwsh ./scripts/doctor.ps1
