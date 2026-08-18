@@ -1,6 +1,6 @@
 # Databricks App product brief
 
-Status: Discovery
+Status: MVP implementation approved
 
 Last updated: 2026-08-18
 
@@ -8,91 +8,101 @@ Use this document as the shared working surface for product ideation. Keep unkno
 
 ## One-sentence concept
 
-_What should this app enable, for whom, and why is Databricks the right place for it?_
+SceneFlow is a consumer-style OTT home screen that uses governed Databricks data to present explainable movie recommendations, while a sales-demo-only user selector makes personalization visible across personas.
 
 ## Problem and opportunity
 
-- Current workflow or pain:
-- Why it matters now:
-- Evidence already available:
-- Existing alternatives and their gaps:
+- Current workflow or pain: Recommendation demos often show either a static consumer UI with no governed data lineage or a technical model notebook with no believable end-user experience.
+- Why it matters now: Sales audiences need to see that Databricks can serve a polished application directly from governed behavioral, catalog, and review data.
+- Evidence already available: Six related CSV datasets contain 300 users, 200 movies, 4,000 viewing sessions, 1,000 user reviews, 500 critic reviews, and 40 critics with complete foreign-key coverage.
+- Existing alternatives and their gaps: A dashboard does not demonstrate a consumer journey, while a hard-coded prototype cannot demonstrate governed data access or per-user personalization.
 
 ## Target users
 
 | User or role | Job to be done | Current workaround | Access level | Priority |
 | --- | --- | --- | --- | --- |
-| _Unknown_ |  |  |  |  |
+| OTT viewer | Find something appealing quickly and understand why it fits | Browse generic rows and popularity charts | App user | Primary |
+| Sales demonstrator | Switch personas and make personalization differences obvious | Use screenshots or separate demo accounts | App user | Primary |
+| Data platform team | Operate the demo without embedding workspace identifiers or credentials | Maintain a standalone demo stack | Workspace developer | Secondary |
 
 ## Outcomes and success measures
 
-- User outcome:
-- Business outcome:
-- Leading indicator:
-- Guardrail metric:
-- Explicit non-goals:
+- User outcome: A viewer sees a personalized home screen and can identify a relevant title within 30 seconds.
+- Business outcome: A five-minute sales demonstration connects governed lakehouse data to an end-user application experience.
+- Leading indicator: Changing the selected user changes the hero title, recommendation order, and evidence labels without reloading the application.
+- Guardrail metric: Already-watched titles never appear in the primary recommendation row, recommendation explanations only cite computed evidence, and demographic fields do not influence ranking.
+- Explicit non-goals: Production recommendation accuracy claims, playback delivery, account management, payments, writes to user profiles, online experimentation, and a production user-switching control.
 
 ## Candidate user journey
 
-1. Entry point:
-2. Core action:
-3. Databricks data or AI interaction:
-4. Decision or artifact produced:
-5. Follow-up action:
+1. Entry point: Open the SceneFlow home screen with a default synthetic demo persona.
+2. Core action: Choose another persona from the header selector and browse personalized rows.
+3. Databricks data or AI interaction: The server queries Unity Catalog tables through a bound SQL Warehouse and ranks unseen movies using explicit preferences, viewing behavior, content similarity, and review quality.
+4. Decision or artifact produced: The viewer selects a movie after seeing a concise, evidence-backed recommendation reason.
+5. Follow-up action: Open the movie detail panel, inspect audience and critic signals, or switch personas to compare the experience.
 
 ## Data, AI, and Databricks resources
 
 | Need | Candidate resource | Read/write | Sensitivity | Open question |
 | --- | --- | --- | --- | --- |
-| _Unknown_ | SQL warehouse, serving endpoint, Unity Catalog object, job, or other |  |  |  |
+| Movie and user data | `media_dev.ott_recommendations` Unity Catalog tables | Read | Internal; user profile fields | Keep app permissions read-only |
+| Application queries | `media-recommendations-warehouse` SQL Warehouse | Read | Internal | Auto-stop after inactivity |
+| Consumer application | `media-ott-consumer-app` Databricks App | Read | Internal demo | Workspace-authenticated users only |
+| Source file staging | `media_dev.ott_recommendations.source_datasets` Volume | Deployment write, runtime none | Internal | App service principal receives no volume write access |
 
 Consider data freshness, volume, latency, lineage, row/column-level controls, model quality, inference cost, and the minimum permissions required by the app service principal.
 
 ## Experience hypotheses
 
-- Primary interface:
-- Most important view or interaction:
-- Empty, loading, error, and permission-denied states:
-- Accessibility and localization needs:
-- Expected devices and viewport sizes:
+- Primary interface: Responsive consumer OTT home page with a cinematic hero, horizontal movie rails, and a detail modal.
+- Most important view or interaction: Changing the demo user updates the hero and personalized rails while preserving a consumer-facing presentation.
+- Empty, loading, error, and permission-denied states: Skeleton cards, retryable error panel, no-recommendations fallback to trending titles, and an explicit access-denied message.
+- Accessibility and localization needs: Korean-first copy, semantic buttons and dialogs, keyboard navigation, visible focus, reduced-motion support, and WCAG AA color contrast.
+- Expected devices and viewport sizes: Sales laptop at 1440px primary; verify 1024px tablet and 390px mobile layouts.
 
 ## Technical options
 
 | Option | Advantages | Costs and risks | Evidence needed |
 | --- | --- | --- | --- |
-| Python app |  |  |  |
-| Node.js app |  |  |  |
-| Combined frontend and Python backend |  |  |  |
+| Python app | Fast data iteration and a small deployment surface | Consumer OTT interactions and visual polish require more custom UI work | Rejected for this MVP |
+| Node.js AppKit app | Generated React/Vite client, Express server, typed SQL queries, and one runtime | Recommendation math must be implemented and tested in TypeScript | Selected |
+| Combined frontend and Python backend | Flexible ML implementation and polished UI | Two toolchains and a larger deployment and testing surface | Reconsider if a trained model becomes necessary |
 
 Do not choose a stack from familiarity alone. Evaluate the user experience, Databricks integrations, team skills, testability, deployment behavior, and operational burden.
 
 ## Constraints and risks
 
-- Security, privacy, or compliance:
-- Workspace and network constraints:
-- Performance and availability expectations:
-- Cost ceiling:
-- Delivery timeline:
-- Adoption or change-management risk:
+- Security, privacy, or compliance: Display names and behavioral data are synthetic demo inputs but remain internal; critic email is excluded from application queries; gender and region are not ranking features.
+- Workspace and network constraints: Use the existing AWS `us-east-2` serverless workspace because the current identity cannot create account-level workspaces.
+- Performance and availability expectations: Warm personalized-home requests should complete within two seconds for the supplied dataset.
+- Cost ceiling: Use one 2X-Small serverless SQL Warehouse with ten-minute auto-stop and a single small Databricks App deployment.
+- Delivery timeline: One end-to-end MVP before adding AI Search or online model serving.
+- Adoption or change-management risk: The user selector must be visibly described as a sales-demo control so it is not mistaken for a production UX pattern.
 
 ## Riskiest assumptions and experiments
 
 | Assumption | Risk if false | Smallest test | Success signal | Status |
 | --- | --- | --- | --- | --- |
-| _Unknown_ |  |  |  | Not started |
+| A consumer UI makes the platform story clearer than a model workbench | The demo looks like a generic OTT clone | Build one complete home-screen prototype and run a five-minute walkthrough | A viewer can identify data, personalization, and governance moments without opening a notebook | In progress |
+| The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Not started |
+| SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Not started |
 
 ## Decisions
 
 | Date | Decision | Rationale | Owner | Follow-up |
 | --- | --- | --- | --- | --- |
 | 2026-08-18 | Keep the application stack open during initial discovery | Avoid constraining the product before users, data, and core journey are understood | Project team | Complete the sections above |
+| 2026-08-18 | Build a consumer-style OTT recommendation experience | The sales demonstration should show a believable final-user surface, not an internal model workbench | User | Implement the SceneFlow home journey |
+| 2026-08-18 | Use the existing serverless Workspace | The authenticated user is a Workspace admin but cannot create account-level Workspaces; the user approved reuse | User | Isolate all new resources with naming-standard-compliant names |
+| 2026-08-18 | Use the Node.js AppKit template with analytics | React/Vite supports a polished consumer UI and the generated server integrates with SQL Warehouse resource binding | Project team | Validate the generated template before deployment |
+| 2026-08-18 | Start with a deterministic explainable hybrid ranker | The interaction matrix is small and synthetic, so the MVP must not claim trained-model accuracy | Project team | Measure recommendation diversity and add AI Search only if it materially improves the demo |
 
 ## Open questions
 
-- Who is the first target user?
-- Which decision or workflow should the first release improve?
-- Which governed Databricks resources must the app access?
-- What is the smallest valuable end-to-end slice?
+- Which cost-center value should replace the temporary development tag value `demo` before promotion beyond development?
+- Should a future version use AI Search embeddings for semantic candidate retrieval after the deterministic MVP is evaluated?
+- Which production identity model would replace the sales-demo-only user selector?
 
 ## Next discovery step
 
-_Record one concrete interview, data check, prototype, or technical spike that reduces the largest current uncertainty._
+Implement the default persona plus two alternate personas and verify that the top-six recommendations visibly differ while the underlying evidence remains traceable to Unity Catalog data.
