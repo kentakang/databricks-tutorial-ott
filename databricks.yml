@@ -1,0 +1,58 @@
+bundle:
+  name: media-ott-recommendations
+
+variables:
+  sql_warehouse_id:
+    description: Existing SQL Warehouse ID used by the development demo
+  catalog_name:
+    description: Unity Catalog catalog containing the governed OTT data
+    default: media_dev
+  schema_name:
+    description: Unity Catalog schema containing the governed OTT data
+    default: ott_recommendations
+
+resources:
+  apps:
+    app:
+      name: 'media-ott-consumer-app'
+      description: 'SceneFlow consumer OTT recommendation sales demo'
+      source_code_path: ./
+
+      # Start the app automatically on deploy.
+      lifecycle:
+        started: true
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
+        - name: consumer-profiles
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.schema_name}.consumer_profiles
+            securable_type: TABLE
+            permission: SELECT
+        - name: movies
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.schema_name}.movies
+            securable_type: TABLE
+            permission: SELECT
+        - name: viewer-interactions
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.schema_name}.viewer_interactions
+            securable_type: TABLE
+            permission: SELECT
+        - name: movie-quality-signals
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.schema_name}.movie_quality_signals
+            securable_type: TABLE
+            permission: SELECT
+        - name: critic-commentary
+          uc_securable:
+            securable_full_name: ${var.catalog_name}.${var.schema_name}.critic_commentary
+            securable_type: TABLE
+            permission: SELECT
+
+targets:
+  dev:
+    default: true
+    mode: development
