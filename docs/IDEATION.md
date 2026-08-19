@@ -91,6 +91,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Passed: `USR0001` and `USR0211` differed on all six titles |
 | SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Passed: deployed warm P95 1.072 seconds over ten requests |
 | The deterministic fallback has measurable offline quality | UI differences could be mistaken for validated relevance | Temporally hold out each eligible user's latest positive title and evaluate the fallback TypeScript ranker | Preserve a reproducible safety baseline while AI Search is evaluated separately | Baseline on 2026-08-19: 298 users, Recall@10 0.0403, MRR@10 0.0141, NDCG@10 0.0201, coverage 0.8550; no production-quality claim |
+| AI Search retrieves catalog items that match Korean semantic intents | A healthy Index could still return irrelevant candidates | Run 16 human-labeled precise and thematic queries against the synchronized Hybrid Index | Establish a versioned regression baseline across every catalog genre | Baseline on 2026-08-19: HitRate@10 1.0000, Recall@10 0.9792, MRR@10 0.9688, NDCG@10 0.9600; thresholds pending |
 
 ## Decisions
 
@@ -105,13 +106,14 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | 2026-08-19 | Add hybrid AI theme curation with a grounded candidate set | Multiple consumer-style themes improve realism while deterministic validation prevents hallucinated or watched titles | User and project team | Measure cold latency, topic diversity, and sales-demo clarity |
 | 2026-08-19 | Monitor recommendation quality and AI curation with MLflow | The deployed algorithm is TypeScript, so temporal backtesting and aggregate traces avoid a drifting Python duplicate while exposing quality and fallback trends | User and project team | Establish baseline thresholds after the first deployed evaluation |
 | 2026-08-19 | Use AI Search RAG for primary recommendation retrieval | The user requested Databricks-native RAG; governed Hybrid retrieval provides semantic candidates while the existing generator and server guardrails prevent hallucinated or watched titles | User | Provision the search document, deploy the endpoint and index, then evaluate live retrieval quality |
+| 2026-08-19 | Adopt a versioned human-labeled AI Search evaluation set | Precise semantic canaries and broader multi-result themes detect retrieval regressions without exporting user behavior or duplicating the recommendation implementation | User and project team | Set release thresholds after reviewing the v1 baseline and stakeholder failure tolerance |
 
 ## Open questions
 
 - Which cost-center value should replace the temporary development tag value `demo` before promotion beyond development?
-- Which labeled retrieval queries should define the AI Search relevance evaluation set after the index is populated?
+- Which v1 AI Search baseline regressions should block a release, especially for thematic Recall@10 and P95 latency?
 - Which production identity model would replace the sales-demo-only user selector?
 
 ## Next discovery step
 
-Provision and sync the AI Search Index in the confirmed development Workspace, validate the deployed RAG flow, then run the five-minute stakeholder sales walkthrough.
+Set AI Search release thresholds from the v1 baseline, validate the deployed RAG flow, then run the five-minute stakeholder sales walkthrough.

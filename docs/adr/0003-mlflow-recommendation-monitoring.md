@@ -18,8 +18,9 @@ Apply two complementary measurements:
 1. Evaluate the deterministic fallback ranker with temporal leave-one-out backtesting. For each eligible synthetic user, remove the latest positive title, rank it against unwatched candidates using the remaining history, and aggregate `Recall@10`, `MRR@10`, `NDCG@10`, and `Catalog Coverage@10`.
 2. Record each uncached RAG recommendation as a run with retrieval source, retrieved candidate count, curation source, latency, and degraded status.
 3. Record each uncached AI curation attempt as a run with aggregate inputs and outputs: candidate count, positive-history count, source, latency, theme count, movie count, unique-movie ratio, and whether a deterministic fallback was used.
+4. Evaluate the synchronized AI Search Index on demand with a versioned, human-labeled Korean retrieval dataset. Record HitRate@10, Recall@10, MRR@10, NDCG@10, failures, and latency as one aggregate run.
 
-The evaluation runs at most once every 30 minutes when an application request loads a catalog snapshot. No raw prompts, reviews, user IDs, model responses, or complete recommendation lists are exported to MLflow. When no experiment is configured, the same offline evaluation remains available locally and run logging becomes a no-op. Monitoring failures do not fail consumer requests.
+The fallback evaluation runs at most once every 30 minutes when an application request loads a catalog snapshot. The labeled AI Search evaluation runs only through its explicit local command. No raw prompts, reviews, user IDs, model responses, or complete recommendation lists are exported to MLflow. When no experiment is configured, both offline evaluations remain available locally and run logging becomes a no-op. Monitoring failures do not fail consumer requests.
 
 ## Alternatives considered
 
@@ -46,7 +47,7 @@ Unity Catalog-backed OpenTelemetry tables avoid experiment-artifact limits and a
 ## Consequences
 
 - The deployed app receives `CAN_EDIT` on one dedicated MLflow experiment and no additional data permissions.
-- Offline metrics use the actual deterministic fallback implementation and current governed snapshot. They do not measure AI Search retrieval quality.
+- Fallback metrics use the actual deterministic implementation and current governed snapshot. A separate labeled retrieval canary measures AI Search but does not estimate personalized recommendation lift.
 - The backtest is directional evidence on synthetic data, not a causal estimate of online recommendation lift. Aggregated quality signals still include the held-out user's contribution.
 - Evaluation is traffic-triggered rather than a guaranteed wall-clock schedule. A Lakeflow Job should replace it if evaluation must run while the app is idle or if the catalog grows beyond in-process evaluation scale.
 - Monitoring uses the already selected Apache-2.0 Databricks SDK, so no additional production dependency or trace-artifact egress path is required.

@@ -86,6 +86,53 @@ describe('createModelMonitoring', () => {
     expect(updateRun).toHaveBeenCalledWith(expect.objectContaining({ run_id: 'run-1', status: 'FINISHED' }));
     expect(monitoring.enabled).toBe(true);
   });
+
+  it('logs labeled AI Search retrieval metrics as a completed MLflow run', async () => {
+    const createRun = vi.fn().mockResolvedValue({ run: { info: { run_id: 'run-2' } } });
+    const loggedBatches: unknown[] = [];
+    const logBatch = vi.fn((request: unknown) => {
+      loggedBatches.push(request);
+      return Promise.resolve({});
+    });
+    const updateRun = vi.fn().mockResolvedValue({});
+    const monitoring = createModelMonitoring({ MLFLOW_EXPERIMENT_ID: 'experiment-1' }, () => ({
+      createRun,
+      logBatch,
+      updateRun,
+    }));
+
+    await monitoring.recordAiSearchEvaluation({
+      datasetName: 'sceneflow_ai_search_relevance',
+      datasetVersion: '1',
+      metrics: {
+        k: 10,
+        evaluatedQueries: 16,
+        failedQueries: 0,
+        hitRateAtK: 1,
+        recallAtK: 0.9,
+        meanReciprocalRankAtK: 0.8,
+        normalizedDiscountedCumulativeGainAtK: 0.85,
+        averageLatencyMs: 100,
+        p95LatencyMs: 150,
+      },
+      cases: [],
+    });
+
+    expect(createRun).toHaveBeenCalledWith(
+      expect.objectContaining({ run_name: 'sceneflow.ai_search_offline_evaluation' })
+    );
+    const loggedBatch = loggedBatches[0] as {
+      metrics: Array<{ key: string; value: number }>;
+      params: Array<{ key: string; value: string }>;
+    };
+    expect(loggedBatch.metrics).toContainEqual(expect.objectContaining({ key: 'recall_at_10', value: 0.9 }));
+    expect(loggedBatch.metrics).toContainEqual(expect.objectContaining({ key: 'p95_latency_ms', value: 150 }));
+    expect(loggedBatch.params).toContainEqual({
+      key: 'dataset_name',
+      value: 'sceneflow_ai_search_relevance',
+    });
+    expect(loggedBatch.params).toContainEqual({ key: 'dataset_version', value: '1' });
+  });
 });
 
 describe('normalizeDatabricksHost', () => {

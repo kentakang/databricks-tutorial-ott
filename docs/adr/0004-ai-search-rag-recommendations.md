@@ -46,5 +46,5 @@ Continuous sync minimizes freshness lag but adds ongoing processing for a catalo
 - The app retains SQL Warehouse reads for complete home and review data, while recommendation candidate retrieval moves out of the Node.js process.
 - Deployment creates a serverless AI Search endpoint and index, which adds platform cost and requires the direct bundle deployment engine.
 - The app service principal gains `SELECT` only on the AI Search index in addition to its existing resource permissions.
-- The existing temporal leave-one-out evaluation measures the deterministic fallback, not live AI Search relevance. RAG traces record retrieval source, candidate count, curation source, latency, and degraded status without exporting prompts, user IDs, or recommendation lists.
-- AI Search retrieval quality must be evaluated separately after the remote index is populated. No production recommendation-quality claim is made.
+- The temporal leave-one-out evaluation measures the deterministic fallback, while a separate versioned human-labeled dataset measures live AI Search relevance. RAG runs record retrieval source, candidate count, curation source, latency, and degraded status without exporting prompts, user IDs, or recommendation lists.
+- The labeled retrieval baseline detects index regressions but does not establish production recommendation lift. No production recommendation-quality claim is made.

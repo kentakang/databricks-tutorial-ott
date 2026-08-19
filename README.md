@@ -10,6 +10,7 @@ SceneFlow는 Databricks AppKit으로 만든 최종 소비자용 OTT 추천 영�
 - Databricks AI Search의 Delta Sync Hybrid Index로 취향 문맥에 맞는 미시청 작품 검색
 - 검색된 후보만 Foundation Model에 제공하는 RAG 추천과 결정론적 안전 폴백
 - MLflow Run/Metric 기반 시간순 오프라인 평가와 RAG·AI 큐레이션 운영 모니터링
+- 사람 라벨 AI Search 평가셋과 Hybrid 검색 회귀 평가
 - 추천 로직의 오프라인 단위 테스트
 
 Databricks 데이터 흐름과 코드 연결은 [docs/DATABRICKS_USAGE_KO.md](docs/DATABRICKS_USAGE_KO.md), 자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·RAG 아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0004-ai-search-rag-recommendations.md](docs/adr/0004-ai-search-rag-recommendations.md)에 기록되어 있습니다.
@@ -39,6 +40,15 @@ npm run build
 databricks apps validate --skip-tests -p <profile> --var "sql_warehouse_id=<warehouse-id>"
 databricks apps validate -p <profile> --var "sql_warehouse_id=<warehouse-id>"
 databricks bundle validate -t dev -p <profile> --var "sql_warehouse_id=<warehouse-id>"
+```
+
+동기화된 AI Search Index의 검색 품질은 16개 한국어 의미 질의가 있는
+`config/evaluation/ai-search-relevance.v1.json`으로 별도 평가합니다. 로컬 `.env`에
+`DATABRICKS_CONFIG_PROFILE`과 `DATABRICKS_VS_INDEX_NAME`을 설정한 뒤 실행합니다.
+`MLFLOW_EXPERIMENT_ID`도 설정되어 있으면 집계 결과를 전용 Experiment에 기록합니다.
+
+```powershell
+npm run evaluate:ai-search
 ```
 
 ## 배포

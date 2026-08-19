@@ -1,6 +1,7 @@
 import { WorkspaceClient } from '@databricks/sdk-experimental';
 import type { CatalogSnapshot } from '../shared/domain.js';
 import type { CurationContext, ThemeCurationResult } from './ai-curation.js';
+import type { AiSearchEvaluationResult } from './ai-search-evaluation.js';
 import { evaluateRecommendationQuality, type RecommendationEvaluationMetrics } from './recommendation-evaluation.js';
 import type { RagRecommendationResult } from './rag-recommendation.js';
 
@@ -91,6 +92,7 @@ export interface ModelMonitoring {
     context: CurationContext,
     operation: () => Promise<ThemeCurationResult>
   ): Promise<ThemeCurationResult>;
+  recordAiSearchEvaluation(result: AiSearchEvaluationResult): Promise<void>;
   evaluateRecommendations(snapshot: CatalogSnapshot): Promise<RecommendationEvaluationMetrics>;
 }
 
@@ -234,6 +236,35 @@ class MlflowModelMonitoring implements ModelMonitoring {
 
     return metrics;
   }
+
+  async recordAiSearchEvaluation(result: AiSearchEvaluationResult): Promise<void> {
+    const { metrics } = result;
+    await this.log({
+      name: 'sceneflow.ai_search_offline_evaluation',
+      startTime: Date.now(),
+      metrics: {
+        [`hit_rate_at_${metrics.k}`]: metrics.hitRateAtK,
+        [`recall_at_${metrics.k}`]: metrics.recallAtK,
+        [`mrr_at_${metrics.k}`]: metrics.meanReciprocalRankAtK,
+        [`ndcg_at_${metrics.k}`]: metrics.normalizedDiscountedCumulativeGainAtK,
+        evaluated_queries: metrics.evaluatedQueries,
+        failed_queries: metrics.failedQueries,
+        average_latency_ms: metrics.averageLatencyMs,
+        p95_latency_ms: metrics.p95LatencyMs,
+      },
+      params: {
+        k: metrics.k,
+        evaluation_method: 'human-labeled-retrieval-canary',
+        dataset_name: result.datasetName,
+        dataset_version: result.datasetVersion,
+        query_type: 'HYBRID',
+      },
+      tags: {
+        'sceneflow.component': 'ai-search-retrieval',
+        'sceneflow.evaluation.version': '1',
+      },
+    });
+  }
 }
 
 class LocalModelMonitoring implements ModelMonitoring {
@@ -252,6 +283,10 @@ class LocalModelMonitoring implements ModelMonitoring {
 
   evaluateRecommendations(snapshot: CatalogSnapshot): Promise<RecommendationEvaluationMetrics> {
     return Promise.resolve(evaluateRecommendationQuality(snapshot, EVALUATION_CUTOFF));
+  }
+
+  recordAiSearchEvaluation(_result: AiSearchEvaluationResult): Promise<void> {
+    return Promise.resolve();
   }
 }
 

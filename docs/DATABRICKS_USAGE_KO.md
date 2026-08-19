@@ -113,19 +113,28 @@ flowchart LR
 | `NDCG@10`             | 순위가 뒤로 갈수록 할인해 계산한 랭킹 품질                          |
 | `Catalog Coverage@10` | 평가 사용자들의 상위 10개 추천이 전체 카탈로그를 얼마나 덮는지 측정 |
 
-[`server/mlflow-monitoring.ts`](../server/mlflow-monitoring.ts)는 Databricks 통합 인증과 MLflow Run API를 사용해 다음 세 종류의 Run을 전용 Experiment에 기록한다. 지표는 Artifact나 외부 저장소를 거치지 않고 MLflow Metric으로 직접 전송된다.
+[`server/mlflow-monitoring.ts`](../server/mlflow-monitoring.ts)는 Databricks 통합 인증과 MLflow Run API를 사용해 다음 네 종류의 Run을 전용 Experiment에 기록한다. 지표는 Artifact나 외부 저장소를 거치지 않고 MLflow Metric으로 직접 전송된다.
 
 - `sceneflow.deterministic_fallback_offline_evaluation`: 위 네 지표, 평가·제외 사용자 수, 데이터 규모, 평가 시간
+- `sceneflow.ai_search_offline_evaluation`: 사람 라벨 검색 질의의 HitRate@10, Recall@10, MRR@10, NDCG@10, 실패 수와 지연 시간
 - `sceneflow.rag_recommendation`: 검색 출처, 검색 후보 수, 생성 출처, 전체 지연, degraded 여부
 - `sceneflow.ai_curation`: Foundation Model/폴백 출처, 지연 시간, 주제·영화 수, 영화 ID 고유 비율, 폴백 여부
 
-오프라인 평가는 카탈로그 스냅샷을 읽은 요청이 있을 때 최대 30분에 한 번 백그라운드에서 실행된다. RAG와 AI 큐레이션 Run은 캐시되지 않은 실제 시도마다 생성된다. 사용자 ID, 원문 프롬프트, 리뷰, 모델 원문 응답, 전체 추천 목록은 MLflow에 보내지 않는다.
+폴백 랭커 오프라인 평가는 카탈로그 스냅샷을 읽은 요청이 있을 때 최대 30분에 한 번 백그라운드에서 실행된다. AI Search 평가는 아래 명령으로만 실행하고, RAG와 AI 큐레이션 Run은 캐시되지 않은 실제 시도마다 생성된다. 사용자 ID, 원문 프롬프트, 리뷰, 모델 원문 응답, 전체 추천 목록은 MLflow에 보내지 않는다.
+
+AI Search 평가는 [`config/evaluation/ai-search-relevance.v1.json`](../config/evaluation/ai-search-relevance.v1.json)의 16개 한국어 질의를 사용한다. 각 레코드는 MLflow 평가 데이터 형식의 `inputs.query_text`와 `expectations.expected_retrieved_context`를 가지며, 10개 장르의 정밀 의미 검색 12건과 복수 정답 주제 검색 4건을 포함한다. 사용자 행동이나 식별자는 포함하지 않는다. 동기화된 Index를 대상으로 다음 명령을 수동 실행하며, `MLFLOW_EXPERIMENT_ID`가 있으면 결과가 위 Run으로 기록된다.
+
+```powershell
+npm run evaluate:ai-search
+```
 
 [`databricks.yml`](../databricks.yml)은 `/Shared/media-ott-recommendations-monitoring` Experiment를 만들고 앱에 `CAN_EDIT`만 부여한다. 개발 대상에서는 번들 모드 접두사가 적용되어 실제 이름이 `/Shared/[dev c_kang] media-ott-recommendations-monitoring`이 된다. [`app.yaml`](../app.yaml)은 바인딩된 ID를 `MLFLOW_EXPERIMENT_ID`로 주입한다. 로컬에서 이 변수가 없으면 평가 함수는 실행할 수 있지만 Run 전송은 no-op이다.
 
 이 평가는 합성 과거 데이터의 방향성 지표이지 실제 클릭·재생 전환의 인과 효과가 아니다. 특히 집계 품질 신호에는 숨긴 사용자의 기여가 남아 있으므로, 프로덕션 전에는 시간 기준 데이터 스냅샷과 온라인 실험을 추가해야 한다.
 
 2026-08-19에 현재 Unity Catalog 스냅샷으로 실행한 첫 기준선은 다음과 같다. 300명 중 이전 긍정 이력이 있는 298명을 평가했으며, `Recall@10=0.0403`, `MRR@10=0.0141`, `NDCG@10=0.0201`, `Catalog Coverage@10=0.8550`이었다. 합성 상호작용에서는 순위 예측력이 낮고 추천 범위는 넓다는 뜻이다. 이 값은 개선 전 비교 기준이지 프로덕션 합격선이 아니다.
+
+같은 날 동기화된 Hybrid Index에 v1 AI Search 평가셋을 실행한 기준선은 `HitRate@10=1.0000`, `Recall@10=0.9792`, `MRR@10=0.9688`, `NDCG@10=0.9600`, 실패 질의 0건이었다. P95 단건 검색 지연은 5.159초였다. 정밀 의미 질의는 쉬운 검색 canary 성격이므로 이 결과도 실제 개인화 추천 품질이나 온라인 전환율을 뜻하지 않는다.
 
 ## 7. 요청 한 건을 따라가 보기
 

@@ -1,0 +1,192 @@
+{
+  "name": "sceneflow_ai_search_relevance",
+  "version": "1",
+  "description": "Human-curated Korean semantic retrieval canaries for the synthetic SceneFlow movie catalog.",
+  "default_k": 10,
+  "records": [
+    {
+      "dataset_record_id": "drama-neon-redevelopment",
+      "inputs": {
+        "query_text": "서울 재개발 지역에서 낡은 네온사인과 상점의 마지막 불빛을 지키는 장인의 따뜻한 이야기"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          {
+            "doc_uri": "sceneflow://movies/MOV0002",
+            "content": "을지로에서 별이 고장났다"
+          }
+        ]
+      },
+      "tags": { "genre": "Drama", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "thriller-audio-forensics",
+      "inputs": {
+        "query_text": "삭제된 짧은 음성 녹음의 배경음을 분석해 다음 범죄 장소를 찾는 디지털 포렌식 스릴러"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0023", "content": "음성메모 17초" }]
+      },
+      "tags": { "genre": "Thriller", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "romance-sign-language-reunion",
+      "inputs": {
+        "query_text": "한강 공연에서 수어 통역사와 무용수가 다시 만나 오래된 오해를 푸는 성인 로맨스"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0047", "content": "한강에 보내지 못한 말" }]
+      },
+      "tags": { "genre": "Romance", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "comedy-cafeteria-apology",
+      "inputs": {
+        "query_text": "구내식당 신입 영양사가 부당한 사과 지시를 사과 요리 축제로 바꾸는 직장 풍자 코미디"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          { "doc_uri": "sceneflow://movies/MOV0065", "content": "오늘의 메뉴는 사과입니다" }
+        ]
+      },
+      "tags": { "genre": "Comedy", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "science-fiction-false-moon",
+      "inputs": {
+        "query_text": "사람들의 기억을 송신하는 가짜 달의 궤도를 추적하는 근미래 서울 SF"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0081", "content": "서울의 두 번째 달" }]
+      },
+      "tags": { "genre": "Science Fiction", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "science-fiction-mars-lottery",
+      "inputs": {
+        "query_text": "가족 중 한 명만 화성 이주선에 탈 수 있는 마지막 좌석을 심사하는 우주 이주 가족극"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0096", "content": "화성행 막차" }]
+      },
+      "tags": { "genre": "Science Fiction", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "fantasy-mountain-complaints",
+      "inputs": {
+        "query_text": "산신령들의 개발 반대 민원을 처리하며 케이블카 사업에 맞서는 공무원 판타지"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0112", "content": "산신령의 민원실" }]
+      },
+      "tags": { "genre": "Fantasy", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "horror-unlisted-tide",
+      "inputs": {
+        "query_text": "갯벌에서 물때표에 없는 썰물과 바다로 향하는 맨발 자국을 쫓는 해안 민속 호러"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0128", "content": "물때표에 없는 시간" }]
+      },
+      "tags": { "genre": "Horror", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "animation-arctic-fox-climate",
+      "inputs": {
+        "query_text": "길 잃은 북극여우가 철새와 기후 변화를 겪으며 눈이 남은 산을 찾는 가족 애니메이션"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0153", "content": "북극여우의 남쪽 여행" }]
+      },
+      "tags": { "genre": "Animation", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "documentary-ghost-nets",
+      "inputs": {
+        "query_text": "해녀와 잠수부가 바닷속 폐어망을 제거하며 해양 생태 변화를 기록한 다큐멘터리"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0168", "content": "파도와 폐어망" }]
+      },
+      "tags": { "genre": "Documentary", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "action-multicultural-taekwondo",
+      "inputs": {
+        "query_text": "은퇴한 태권도 선수가 다문화 청소년 팀과 철거 위기 도장을 지키는 스포츠 휴먼 액션"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0185", "content": "국경 없는 태권도장" }]
+      },
+      "tags": { "genre": "Action", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "action-colonial-radio",
+      "inputs": {
+        "query_text": "라디오 수리공이 독립운동 암호 방송 송신기를 옮기는 1930년대 경성 첩보 액션"
+      },
+      "expectations": {
+        "expected_retrieved_context": [{ "doc_uri": "sceneflow://movies/MOV0182", "content": "경성 전파사 1934" }]
+      },
+      "tags": { "genre": "Action", "intent": "precise-semantic" }
+    },
+    {
+      "dataset_record_id": "theme-urban-craft-memory",
+      "inputs": {
+        "query_text": "재개발과 폐업 앞에서 오래된 가게, 간판, 사진, 전자제품을 고치며 도시의 기억을 지키는 이야기"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          { "doc_uri": "sceneflow://movies/MOV0002", "content": "을지로에서 별이 고장났다" },
+          { "doc_uri": "sceneflow://movies/MOV0016", "content": "동네 사진관의 마지막 손님" },
+          { "doc_uri": "sceneflow://movies/MOV0162", "content": "사라지는 간판의 글씨" },
+          { "doc_uri": "sceneflow://movies/MOV0165", "content": "수선하는 도시" }
+        ]
+      },
+      "tags": { "genre": "cross-genre", "intent": "thematic-recall" }
+    },
+    {
+      "dataset_record_id": "theme-night-audio-signal",
+      "inputs": {
+        "query_text": "늦은 밤 녹음과 정체불명의 소리, 구조 신호를 분석해 숨겨진 사건을 추적하는 미스터리"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          { "doc_uri": "sceneflow://movies/MOV0009", "content": "유리창 너머의 목소리" },
+          { "doc_uri": "sceneflow://movies/MOV0023", "content": "음성메모 17초" },
+          { "doc_uri": "sceneflow://movies/MOV0027", "content": "파도 아래 녹음실" }
+        ]
+      },
+      "tags": { "genre": "cross-genre", "intent": "thematic-recall" }
+    },
+    {
+      "dataset_record_id": "theme-family-climate-animation",
+      "inputs": {
+        "query_text": "어린 동물과 가족이 기후 변화와 오염을 이겨 내며 자연을 회복하는 환경 애니메이션"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          { "doc_uri": "sceneflow://movies/MOV0151", "content": "반달곰의 여름 일기" },
+          { "doc_uri": "sceneflow://movies/MOV0153", "content": "북극여우의 남쪽 여행" },
+          { "doc_uri": "sceneflow://movies/MOV0156", "content": "바다 유리의 노래" }
+        ]
+      },
+      "tags": { "genre": "Animation", "intent": "thematic-recall" }
+    },
+    {
+      "dataset_record_id": "theme-coastal-rescue-action",
+      "inputs": {
+        "query_text": "폭풍과 해상 사고 속에서 선박, 구조 통신, 에너지 시설을 지키는 긴박한 해양 구조 액션"
+      },
+      "expectations": {
+        "expected_retrieved_context": [
+          { "doc_uri": "sceneflow://movies/MOV0184", "content": "북항 추격선" },
+          { "doc_uri": "sceneflow://movies/MOV0195", "content": "검은 파도 작전" },
+          { "doc_uri": "sceneflow://movies/MOV0199", "content": "독도 기상대의 하루" }
+        ]
+      },
+      "tags": { "genre": "Action", "intent": "thematic-recall" }
+    }
+  ]
+}
