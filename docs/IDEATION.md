@@ -1,8 +1,8 @@
 # Databricks App product brief
 
-Status: MVP implementation approved
+Status: MVP deployed and technically validated
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 Use this document as the shared working surface for product ideation. Keep unknowns explicit; do not turn assumptions into facts merely to complete the template.
 
@@ -46,7 +46,7 @@ SceneFlow is a consumer-style OTT home screen that uses governed Databricks data
 | Need | Candidate resource | Read/write | Sensitivity | Open question |
 | --- | --- | --- | --- | --- |
 | Movie and user data | `media_dev.ott_recommendations` Unity Catalog tables | Read | Internal; user profile fields | Keep app permissions read-only |
-| Application queries | `media-recommendations-warehouse` SQL Warehouse | Read | Internal | Auto-stop after inactivity |
+| Application queries | Existing `Serverless Starter Warehouse` (migration exception) | Read | Internal | Future compliant name: `media-recommendations-warehouse` |
 | Consumer application | `media-ott-consumer-app` Databricks App | Read | Internal demo | Workspace-authenticated users only |
 | Source file staging | `media_dev.ott_recommendations.source_datasets` Volume | Deployment write, runtime none | Internal | App service principal receives no volume write access |
 
@@ -83,9 +83,9 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 
 | Assumption | Risk if false | Smallest test | Success signal | Status |
 | --- | --- | --- | --- | --- |
-| A consumer UI makes the platform story clearer than a model workbench | The demo looks like a generic OTT clone | Build one complete home-screen prototype and run a five-minute walkthrough | A viewer can identify data, personalization, and governance moments without opening a notebook | In progress |
-| The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Not started |
-| SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Not started |
+| A consumer UI makes the platform story clearer than a model workbench | The demo looks like a generic OTT clone | Build one complete home-screen prototype and run a five-minute walkthrough | A viewer can identify data, personalization, and governance moments without opening a notebook | Prototype completed; sales walkthrough pending |
+| The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Passed: `USR0001` and `USR0211` differed on all six titles |
+| SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Passed: deployed warm P95 1.072 seconds over ten requests |
 
 ## Decisions
 
@@ -96,6 +96,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | 2026-08-18 | Use the existing serverless Workspace | The authenticated user is a Workspace admin but cannot create account-level Workspaces; the user approved reuse | User | Isolate all new resources with naming-standard-compliant names |
 | 2026-08-18 | Use the Node.js AppKit template with analytics | React/Vite supports a polished consumer UI and the generated server integrates with SQL Warehouse resource binding | Project team | Validate the generated template before deployment |
 | 2026-08-18 | Start with a deterministic explainable hybrid ranker | The interaction matrix is small and synthetic, so the MVP must not claim trained-model accuracy | Project team | Measure recommendation diversity and add AI Search only if it materially improves the demo |
+| 2026-08-19 | Deploy the MVP with five read-only Unity Catalog bindings | The app needs only profiles, movies, interactions, quality signals, and critic commentary; source data remains inaccessible at runtime | Project team | Run the stakeholder sales walkthrough |
 
 ## Open questions
 
@@ -105,4 +106,4 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 
 ## Next discovery step
 
-Implement the default persona plus two alternate personas and verify that the top-six recommendations visibly differ while the underlying evidence remains traceable to Unity Catalog data.
+Run the five-minute stakeholder sales walkthrough and record whether the consumer experience makes the governed-data and personalization story understandable without opening a notebook.
