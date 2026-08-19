@@ -9,6 +9,7 @@ import type {
   UserProfile,
   ViewerInteraction,
 } from '../shared/domain.js';
+import { createFallbackCuration, type CurationContext, type ThemeCurationResult } from './ai-curation.js';
 
 interface PreferenceAnchor {
   movie: Movie;
@@ -205,6 +206,10 @@ function recommendationReason(profile: UserProfile, ranked: RankedMovie): string
   return `${ranked.movie.genreDetail}의 분위기와 높은 작품 반응을 함께 반영했어요.`;
 }
 
+function matchScore(score: number): number {
+  return Math.round(clamp(0.6 + score * 0.38) * 100);
+}
+
 function makeCard(
   profile: UserProfile,
   ranked: RankedMovie,
@@ -214,7 +219,7 @@ function makeCard(
 ): MovieCard {
   return {
     ...ranked.movie,
-    matchScore: Math.round(clamp(0.6 + ranked.score * 0.38) * 100),
+    matchScore: matchScore(ranked.score),
     reason: recommendationReason(profile, ranked),
     evidence: evidenceFor(profile, ranked, quality),
     averageUserRating: quality?.averageUserRating ?? null,
@@ -281,11 +286,63 @@ export function rankPersonalized(
   return { ranked, positiveAnchors, negativeAnchors, interactions };
 }
 
-export function buildHomeFeed(snapshot: CatalogSnapshot, userId: string): HomeFeed {
+function curationContext(
+  snapshot: CatalogSnapshot,
+  profile: UserProfile,
+  ranking: ReturnType<typeof rankPersonalized>
+): CurationContext {
+  const qualityById = new Map(snapshot.qualitySignals.map((signal) => [signal.movieId, signal]));
+
+  return {
+    userId: profile.userId,
+    preferredGenre: profile.preferredGenre,
+    watchTimePreference: profile.watchTimePreference,
+    preferredDevice: profile.preferredDevice,
+    positiveHistory: ranking.positiveAnchors.slice(0, 6).map((anchor) => ({
+      title: anchor.movie.title,
+      primaryGenre: anchor.movie.primaryGenre,
+      genreDetail: anchor.movie.genreDetail,
+      setting: anchor.movie.setting,
+      keywords: anchor.movie.keywords,
+      preferenceSignal: Number(anchor.signal.toFixed(2)),
+    })),
+    candidates: ranking.ranked.slice(0, 48).map((item) => {
+      const quality = qualityById.get(item.movie.movieId);
+      return {
+        movieId: item.movie.movieId,
+        title: item.movie.title,
+        primaryGenre: item.movie.primaryGenre,
+        genreDetail: item.movie.genreDetail,
+        setting: item.movie.setting,
+        keywords: item.movie.keywords,
+        logline: item.movie.logline,
+        runtimeMinutes: item.movie.runtimeMinutes,
+        isPlatformOriginal: item.movie.isPlatformOriginal,
+        matchScore: matchScore(item.score),
+        averageUserRating: quality?.averageUserRating ?? null,
+        averageCriticScore: quality?.averageCriticScore ?? null,
+      };
+    }),
+  };
+}
+
+export function buildCurationContext(snapshot: CatalogSnapshot, userId: string): CurationContext {
   const profile = snapshot.users.find((user) => user.userId === userId);
   if (!profile) throw new Error(`Unknown user: ${userId}`);
 
-  const { ranked, positiveAnchors, interactions } = rankPersonalized(snapshot, profile);
+  return curationContext(snapshot, profile, rankPersonalized(snapshot, profile));
+}
+
+export function buildHomeFeed(
+  snapshot: CatalogSnapshot,
+  userId: string,
+  suppliedCuration?: ThemeCurationResult
+): HomeFeed {
+  const profile = snapshot.users.find((user) => user.userId === userId);
+  if (!profile) throw new Error(`Unknown user: ${userId}`);
+
+  const ranking = rankPersonalized(snapshot, profile);
+  const { ranked, interactions } = ranking;
   if (ranked.length === 0) throw new Error('No unwatched movies are available to recommend.');
 
   const qualityById = new Map(snapshot.qualitySignals.map((signal) => [signal.movieId, signal]));
@@ -297,20 +354,19 @@ export function buildHomeFeed(snapshot: CatalogSnapshot, userId: string): HomeFe
   const toCard = (item: RankedMovie, progressPct?: number) =>
     makeCard(profile, item, qualityById.get(item.movie.movieId), criticByMovie.get(item.movie.movieId), progressPct);
 
-  const personalized = ranked.slice(0, 14).map((item) => toCard(item));
-  const primaryAnchor = positiveAnchors[0] ?? null;
-  const inspiredBy = primaryAnchor
-    ? {
-        title: `〈${primaryAnchor.movie.title}〉을 좋아한 당신에게`,
-        anchorTitle: primaryAnchor.movie.title,
-        movies: ranked
-          .map((item) => ({ item, similarity: similarity(item.movie, primaryAnchor.movie).score }))
-          .filter(({ similarity: score }) => score > 0)
-          .sort((left, right) => right.similarity - left.similarity || right.item.score - left.item.score)
-          .slice(0, 12)
-          .map(({ item }) => toCard(item)),
-      }
-    : null;
+  const curation = suppliedCuration ?? createFallbackCuration(curationContext(snapshot, profile, ranking));
+  const rankedById = new Map(ranked.map((item) => [item.movie.movieId, item]));
+  const aiThemes = curation.themes
+    .map((theme) => ({
+      themeId: theme.themeId,
+      title: theme.title,
+      subtitle: theme.subtitle,
+      movies: theme.movieIds.flatMap((movieId) => {
+        const item = rankedById.get(movieId);
+        return item ? [toCard(item)] : [];
+      }),
+    }))
+    .filter((theme) => theme.movies.length > 0);
 
   const movieById = new Map(snapshot.movies.map((movie) => [movie.movieId, movie]));
   const partialByMovie = new Map<string, ViewerInteraction>();
@@ -361,8 +417,18 @@ export function buildHomeFeed(snapshot: CatalogSnapshot, userId: string): HomeFe
 
   return {
     profile,
-    hero: personalized[0],
-    rails: { personalized, inspiredBy, continueWatching, trending },
+    hero: aiThemes[0]?.movies[0] ?? toCard(ranked[0]),
+    rails: { aiThemes, continueWatching, trending },
+    aiCuration: {
+      source: curation.source,
+      label:
+        curation.source === 'foundation-model'
+          ? 'Databricks AI 큐레이션'
+          : curation.source === 'ai-pending'
+            ? 'Databricks AI가 주제 구성 중'
+            : '취향 기반 큐레이션',
+      themeCount: aiThemes.length,
+    },
     tasteSummary: {
       headline: `${genreLabel(profile.preferredGenre)}에서 시작해 새로운 결을 발견하는 취향`,
       details: `${watchTimeLabels[profile.watchTimePreference] ?? profile.watchTimePreference} 시청 패턴과 ${deviceLabels[profile.preferredDevice] ?? profile.preferredDevice} 이용 맥락을 반영했습니다.`,

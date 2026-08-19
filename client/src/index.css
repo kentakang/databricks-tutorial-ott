@@ -560,6 +560,32 @@ select:focus-visible {
   font-size: 0.72rem;
 }
 
+.ai-curation-pill {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+  padding: 0.25rem 0.48rem;
+  border: 1px solid rgba(166, 139, 255, 0.2);
+  border-radius: 999px;
+  color: #d7ccff;
+  background: rgba(137, 105, 246, 0.09);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.ai-curation-pill.deterministic-fallback {
+  color: rgba(255, 255, 255, 0.56);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ai-curation-pill.ai-pending svg {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
 .taste-strip dl {
   display: flex;
   gap: 1.8rem;
@@ -606,6 +632,27 @@ select:focus-visible {
   color: #f6f5f8;
   font-size: clamp(1.18rem, 1.8vw, 1.55rem);
   letter-spacing: -0.035em;
+}
+
+.rail-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.ai-rail-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.26rem 0.45rem;
+  border: 1px solid rgba(166, 139, 255, 0.24);
+  border-radius: 5px;
+  color: #cabaff;
+  background: rgba(137, 105, 246, 0.09);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .rail-heading p {
@@ -1548,6 +1595,11 @@ select:focus-visible {
 
   .taste-strip p {
     display: none;
+  }
+
+  .ai-curation-pill {
+    margin-top: 0.42rem;
+    font-size: 0.52rem;
   }
 
   .taste-strip dl {

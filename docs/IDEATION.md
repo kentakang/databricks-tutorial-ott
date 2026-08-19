@@ -8,7 +8,7 @@ Use this document as the shared working surface for product ideation. Keep unkno
 
 ## One-sentence concept
 
-SceneFlow is a consumer-style OTT home screen that uses governed Databricks data to present explainable movie recommendations, while a sales-demo-only user selector makes personalization visible across personas.
+SceneFlow is a consumer-style OTT home screen where Databricks AI turns governed viewing signals into multiple explainable recommendation themes, while a sales-demo-only user selector makes personalization visible across personas.
 
 ## Problem and opportunity
 
@@ -29,7 +29,7 @@ SceneFlow is a consumer-style OTT home screen that uses governed Databricks data
 
 - User outcome: A viewer sees a personalized home screen and can identify a relevant title within 30 seconds.
 - Business outcome: A five-minute sales demonstration connects governed lakehouse data to an end-user application experience.
-- Leading indicator: Changing the selected user changes the hero title, recommendation order, and evidence labels without reloading the application.
+- Leading indicator: Changing the selected user changes the hero title, four AI-generated recommendation themes, movie groupings, and evidence labels without reloading the application.
 - Guardrail metric: Already-watched titles never appear in the primary recommendation row, recommendation explanations only cite computed evidence, and demographic fields do not influence ranking.
 - Explicit non-goals: Production recommendation accuracy claims, playback delivery, account management, payments, writes to user profiles, online experimentation, and a production user-switching control.
 
@@ -37,8 +37,8 @@ SceneFlow is a consumer-style OTT home screen that uses governed Databricks data
 
 1. Entry point: Open the SceneFlow home screen with a default synthetic demo persona.
 2. Core action: Choose another persona from the header selector and browse personalized rows.
-3. Databricks data or AI interaction: The server queries Unity Catalog tables through a bound SQL Warehouse and ranks unseen movies using explicit preferences, viewing behavior, content similarity, and review quality.
-4. Decision or artifact produced: The viewer selects a movie after seeing a concise, evidence-backed recommendation reason.
+3. Databricks data or AI interaction: The server ranks unseen movies from Unity Catalog, then a bound Databricks Foundation Model organizes grounded candidates into four persona-specific themes.
+4. Decision or artifact produced: The viewer explores several AI-curated collections and selects a movie after seeing a concise, evidence-backed recommendation reason.
 5. Follow-up action: Open the movie detail panel, read every critic commentary and written user review, or switch personas to compare the experience.
 
 ## Data, AI, and Databricks resources
@@ -47,6 +47,7 @@ SceneFlow is a consumer-style OTT home screen that uses governed Databricks data
 | --- | --- | --- | --- | --- |
 | Movie and user data | `media_dev.ott_recommendations` Unity Catalog tables | Read | Internal; user profile fields | Keep app permissions read-only |
 | Application queries | Existing `Serverless Starter Warehouse` (migration exception) | Read | Internal | Future compliant name: `media-recommendations-warehouse` |
+| AI theme curation | Existing `databricks-qwen3-next-80b-a3b-instruct` Foundation Model endpoint | Query | Synthetic taste and candidate metadata | App receives `CAN_QUERY` only |
 | Consumer application | `media-ott-consumer-app` Databricks App | Read | Internal demo | Workspace-authenticated users only |
 | Source file staging | `media_dev.ott_recommendations.source_datasets` Volume | Deployment write, runtime none | Internal | App service principal receives no volume write access |
 
@@ -55,7 +56,7 @@ Consider data freshness, volume, latency, lineage, row/column-level controls, mo
 ## Experience hypotheses
 
 - Primary interface: Responsive consumer OTT home page with a cinematic hero, horizontal movie rails, and a detail modal.
-- Most important view or interaction: Changing the demo user updates the hero and personalized rails, while each movie detail separates the complete critic and viewer review collections into readable tabs.
+- Most important view or interaction: Changing the demo user regenerates four distinct AI-curated themes and their movie groupings, while each movie detail exposes complete critic and viewer review collections.
 - Empty, loading, error, and permission-denied states: Skeleton cards, retryable error panel, no-recommendations fallback to trending titles, and an explicit access-denied message.
 - Accessibility and localization needs: Korean-first copy, semantic buttons and dialogs, keyboard navigation, visible focus, reduced-motion support, and WCAG AA color contrast.
 - Expected devices and viewport sizes: Sales laptop at 1440px primary; verify 1024px tablet and 390px mobile layouts.
@@ -67,6 +68,7 @@ Consider data freshness, volume, latency, lineage, row/column-level controls, mo
 | Python app | Fast data iteration and a small deployment surface | Consumer OTT interactions and visual polish require more custom UI work | Rejected for this MVP |
 | Node.js AppKit app | Generated React/Vite client, Express server, typed SQL queries, and one runtime | Recommendation math must be implemented and tested in TypeScript | Selected |
 | Combined frontend and Python backend | Flexible ML implementation and polished UI | Two toolchains and a larger deployment and testing surface | Reconsider if a trained model becomes necessary |
+| Hybrid AI curation | Deterministic candidate safety with creative, persona-specific themes from Model Serving | Cold requests add inference latency and token cost | Selected for multi-theme home |
 
 Do not choose a stack from familiarity alone. Evaluate the user experience, Databricks integrations, team skills, testability, deployment behavior, and operational burden.
 
@@ -74,8 +76,8 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 
 - Security, privacy, or compliance: Display names and behavioral data are synthetic demo inputs but remain internal; critic email is excluded from application queries; gender and region are not ranking features.
 - Workspace and network constraints: Use the existing AWS `us-east-2` serverless workspace because the current identity cannot create account-level workspaces.
-- Performance and availability expectations: Warm personalized-home requests should complete within two seconds for the supplied dataset.
-- Cost ceiling: Use one 2X-Small serverless SQL Warehouse with ten-minute auto-stop and a single small Databricks App deployment.
+- Performance and availability expectations: The multi-theme home should appear within two seconds on a warm catalog cache; cold AI curation updates progressively and retains deterministic themes on failure.
+- Cost ceiling: Use one 2X-Small serverless SQL Warehouse, one existing pay-per-token Foundation Model endpoint, and a single Databricks App deployment.
 - Delivery timeline: One end-to-end MVP before adding AI Search or online model serving.
 - Adoption or change-management risk: The user selector must be visibly described as a sales-demo control so it is not mistaken for a production UX pattern.
 
@@ -97,6 +99,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | 2026-08-18 | Use the Node.js AppKit template with analytics | React/Vite supports a polished consumer UI and the generated server integrates with SQL Warehouse resource binding | Project team | Validate the generated template before deployment |
 | 2026-08-18 | Start with a deterministic explainable hybrid ranker | The interaction matrix is small and synthetic, so the MVP must not claim trained-model accuracy | Project team | Measure recommendation diversity and add AI Search only if it materially improves the demo |
 | 2026-08-19 | Deploy the MVP with five read-only Unity Catalog bindings | The app needs only profiles, movies, interactions, quality signals, and critic commentary; source data remains inaccessible at runtime | Project team | Run the stakeholder sales walkthrough |
+| 2026-08-19 | Add hybrid AI theme curation with a grounded candidate set | Multiple consumer-style themes improve realism while deterministic validation prevents hallucinated or watched titles | User and project team | Measure cold latency, topic diversity, and sales-demo clarity |
 
 ## Open questions
 

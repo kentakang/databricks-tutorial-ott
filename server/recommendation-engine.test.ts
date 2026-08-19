@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogSnapshot, Movie, UserProfile, ViewerInteraction } from '../shared/domain.js';
-import { interactionSignal, rankPersonalized } from './recommendation-engine.js';
+import type { ThemeCurationResult } from './ai-curation.js';
+import { buildHomeFeed, interactionSignal, rankPersonalized } from './recommendation-engine.js';
 
 const profile = (userId: string, preferredGenre: string): UserProfile => ({
   userId,
@@ -96,5 +97,34 @@ describe('rankPersonalized', () => {
 
     expect(rankPersonalized(data, dramaViewer).ranked[0]?.movie.primaryGenre).toBe('드라마');
     expect(rankPersonalized(data, horrorViewer).ranked[0]?.movie.primaryGenre).toBe('공포');
+  });
+});
+
+describe('buildHomeFeed', () => {
+  it('renders multiple supplied themes without reintroducing watched movies', () => {
+    const user = profile('USR1', '드라마');
+    const watched = movie('MOV1', '드라마');
+    const catalog = [watched, movie('MOV2', '드라마'), movie('MOV3', '공포'), movie('MOV4', '액션')];
+    const curation: ThemeCurationResult = {
+      source: 'foundation-model',
+      themes: [
+        { themeId: 'ai-theme-1', title: '첫 번째 주제', subtitle: '첫 번째 설명', movieIds: ['MOV1', 'MOV2'] },
+        { themeId: 'ai-theme-2', title: '두 번째 주제', subtitle: '두 번째 설명', movieIds: ['MOV3', 'MOV4'] },
+      ],
+    };
+
+    const feed = buildHomeFeed(
+      snapshot([user], catalog, [interaction(user.userId, watched.movieId, 100, 5)]),
+      user.userId,
+      curation
+    );
+
+    expect(feed.rails.aiThemes).toHaveLength(2);
+    expect(feed.rails.aiThemes.flatMap((theme) => theme.movies).map((item) => item.movieId)).toEqual([
+      'MOV2',
+      'MOV3',
+      'MOV4',
+    ]);
+    expect(feed.aiCuration.source).toBe('foundation-model');
   });
 });

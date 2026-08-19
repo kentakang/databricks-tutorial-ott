@@ -10,6 +10,9 @@ variables:
   schema_name:
     description: Unity Catalog schema containing the governed OTT data
     default: ott_recommendations
+  serving_endpoint_name:
+    description: Existing Databricks Foundation Model endpoint used for AI curation
+    default: databricks-qwen3-next-80b-a3b-instruct
 
 resources:
   apps:
@@ -26,6 +29,10 @@ resources:
           sql_warehouse:
             id: ${var.sql_warehouse_id}
             permission: CAN_USE
+        - name: ai-curation-model
+          serving_endpoint:
+            name: ${var.serving_endpoint_name}
+            permission: CAN_QUERY
         - name: consumer-profiles
           uc_securable:
             securable_full_name: ${var.catalog_name}.${var.schema_name}.consumer_profiles

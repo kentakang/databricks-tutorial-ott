@@ -2,6 +2,8 @@ command: ['npm', 'run', 'start']
 env:
   - name: DATABRICKS_WAREHOUSE_ID
     valueFrom: sql-warehouse
+  - name: DATABRICKS_SERVING_ENDPOINT_NAME
+    valueFrom: ai-curation-model
   - name: DATABRICKS_CATALOG
     value: media_dev
   - name: DATABRICKS_SCHEMA

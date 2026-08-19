@@ -85,6 +85,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const pendingCurationUserId =
+    feed?.aiCuration.source === 'ai-pending' && feed.profile.userId === selectedUserId ? selectedUserId : null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,6 +121,30 @@ export default function App() {
   }, [selectedUserId, retryKey]);
 
   useEffect(() => {
+    if (!pendingCurationUserId) return;
+    const controller = new AbortController();
+    fetchJson<HomeFeed>(`/api/curation/${encodeURIComponent(pendingCurationUserId)}`, controller.signal)
+      .then(setFeed)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        setFeed((current) =>
+          current?.profile.userId === pendingCurationUserId
+            ? {
+                ...current,
+                aiCuration: {
+                  ...current.aiCuration,
+                  source: 'deterministic-fallback',
+                  label: '취향 기반 큐레이션',
+                },
+              }
+            : current
+        );
+      });
+
+    return () => controller.abort();
+  }, [pendingCurationUserId]);
+
+  useEffect(() => {
     if (!selectedMovie) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelectedMovie(null);
@@ -135,8 +161,7 @@ export default function App() {
     if (!feed || searchQuery.trim().length < 2) return [];
     const needle = searchQuery.trim().toLowerCase();
     const allMovies = [
-      ...feed.rails.personalized,
-      ...(feed.rails.inspiredBy?.movies ?? []),
+      ...feed.rails.aiThemes.flatMap((theme) => theme.movies),
       ...feed.rails.continueWatching,
       ...feed.rails.trending,
     ];
@@ -202,6 +227,9 @@ export default function App() {
               <span className="eyebrow">오늘의 취향 브리핑</span>
               <h2>{feed.tasteSummary.headline}</h2>
               <p>{feed.tasteSummary.details}</p>
+              <span className={`ai-curation-pill ${feed.aiCuration.source}`}>
+                <Sparkles size={11} /> {feed.aiCuration.label} · {feed.aiCuration.themeCount}개 추천 주제
+              </span>
             </div>
             <dl>
               <div>
@@ -226,14 +254,24 @@ export default function App() {
               />
             ) : (
               <>
-                <MovieRail
-                  id="personalized"
-                  title={`${feed.profile.displayName}님을 위한 추천`}
-                  subtitle="시청·평점·작품 반응을 함께 읽었습니다"
-                  movies={feed.rails.personalized}
-                  onSelect={setSelectedMovie}
-                  showMatch
-                />
+                {feed.rails.aiThemes.map((theme) => (
+                  <MovieRail
+                    key={theme.themeId}
+                    id={theme.themeId}
+                    title={theme.title}
+                    subtitle={theme.subtitle}
+                    movies={theme.movies}
+                    onSelect={setSelectedMovie}
+                    showMatch
+                    badge={
+                      feed.aiCuration.source === 'foundation-model'
+                        ? 'AI CURATED'
+                        : feed.aiCuration.source === 'ai-pending'
+                          ? 'AI CURATING'
+                          : 'FOR YOU'
+                    }
+                  />
+                ))}
                 {feed.rails.continueWatching.length > 0 && (
                   <MovieRail
                     id="continue-watching"
@@ -242,15 +280,6 @@ export default function App() {
                     movies={feed.rails.continueWatching}
                     onSelect={setSelectedMovie}
                     showProgress
-                  />
-                )}
-                {feed.rails.inspiredBy && feed.rails.inspiredBy.movies.length > 0 && (
-                  <MovieRail
-                    id="inspired-by"
-                    title={feed.rails.inspiredBy.title}
-                    subtitle="좋아한 작품의 분위기와 소재를 연결했어요"
-                    movies={feed.rails.inspiredBy.movies}
-                    onSelect={setSelectedMovie}
                   />
                 )}
                 <MovieRail
@@ -311,7 +340,7 @@ function Header({
         <span>SceneFlow</span>
       </a>
       <nav aria-label="주요 메뉴">
-        <a href="#personalized">홈</a>
+        <a href="#ai-theme-1">홈</a>
         <a href="#trending">영화</a>
         <a href="#continue-watching">내가 찜한 콘텐츠</a>
       </nav>
@@ -412,6 +441,7 @@ function MovieRail({
   showMatch = false,
   showProgress = false,
   numbered = false,
+  badge,
 }: {
   id: string;
   title: string;
@@ -421,6 +451,7 @@ function MovieRail({
   showMatch?: boolean;
   showProgress?: boolean;
   numbered?: boolean;
+  badge?: string;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const scroll = (direction: number) => {
@@ -431,7 +462,14 @@ function MovieRail({
     <section id={id} className="rail-section">
       <div className="rail-heading">
         <div>
-          <h2>{title}</h2>
+          <div className="rail-title-line">
+            {badge && (
+              <span className="ai-rail-badge">
+                <Sparkles size={10} /> {badge}
+              </span>
+            )}
+            <h2>{title}</h2>
+          </div>
           <p>{subtitle}</p>
         </div>
         <div className="rail-controls" aria-label={`${title} 스크롤`}>
@@ -727,8 +765,8 @@ function LoadingState({ changingProfile }: { changingProfile: boolean }) {
         <span className="loading-pulse">
           <Sparkles size={20} />
         </span>
-        <h2>{changingProfile ? '새로운 취향으로 홈을 바꾸는 중' : '당신만의 SceneFlow를 준비하는 중'}</h2>
-        <p>시청 기록과 작품 반응을 연결하고 있어요.</p>
+        <h2>{changingProfile ? 'AI가 새로운 추천 주제를 만드는 중' : 'AI가 당신의 SceneFlow를 구성하는 중'}</h2>
+        <p>시청 기록과 작품 반응을 읽고 여러 취향 컬렉션으로 편성하고 있어요.</p>
       </div>
     </main>
   );

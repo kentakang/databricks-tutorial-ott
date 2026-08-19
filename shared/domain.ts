@@ -121,18 +121,25 @@ export interface MovieCard extends Movie {
   progressPct?: number;
 }
 
+export interface RecommendationThemeRail {
+  themeId: string;
+  title: string;
+  subtitle: string;
+  movies: MovieCard[];
+}
+
 export interface HomeFeed {
   profile: UserProfile;
   hero: MovieCard;
   rails: {
-    personalized: MovieCard[];
-    inspiredBy: {
-      title: string;
-      anchorTitle: string;
-      movies: MovieCard[];
-    } | null;
+    aiThemes: RecommendationThemeRail[];
     continueWatching: MovieCard[];
     trending: MovieCard[];
+  };
+  aiCuration: {
+    source: 'foundation-model' | 'deterministic-fallback' | 'ai-pending';
+    label: string;
+    themeCount: number;
   };
   tasteSummary: {
     headline: string;
