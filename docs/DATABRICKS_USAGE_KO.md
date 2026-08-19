@@ -20,7 +20,7 @@ flowchart LR
     E -->|검증된 홈 피드 JSON| G[React OTT 화면]
     E -.모델 실패 시.-> H[결정론적 폴백 주제]
     H --> G
-    E -->|집계 품질 지표와 Trace| I[MLflow Experiment]
+    E -->|집계 품질 지표 Run| I[MLflow Experiment]
 ```
 
 핵심 원칙은 **데이터 접근, 검색, 추천 안전성, 표현 생성의 책임을 분리**하는 것이다. Unity Catalog와 SQL Warehouse가 데이터 접근을, AI Search가 의미·키워드 기반 후보 검색을, TypeScript 서버가 ID 검증과 시청 이력 제외를 담당한다. Foundation Model은 검색으로 근거가 확인된 후보를 주제로 묶는 역할만 맡는다.
@@ -97,7 +97,7 @@ flowchart LR
 | SQL Warehouse             | `CAN_USE`   | 읽기 전용 SQL 실행  |
 | AI Search Index           | `SELECT`    | Hybrid 후보 검색    |
 | Foundation Model Endpoint | `CAN_QUERY` | 검색 기반 주제 생성 |
-| MLflow Experiment         | `CAN_EDIT`  | 평가·Trace 기록     |
+| MLflow Experiment         | `CAN_EDIT`  | 평가·운영 지표 기록 |
 | 앱 노출 테이블·View 5개   | `SELECT`    | 홈 피드와 리뷰 구성 |
 
 소스 CSV가 있는 Volume에는 앱 런타임 쓰기 권한을 부여하지 않는다. Workspace host, 토큰, Warehouse ID, Endpoint 이름, 카탈로그 경로도 애플리케이션 코드에 하드코딩하지 않는다. 로컬에서는 `.env`와 Databricks CLI 프로필을 사용하고, 배포 환경에서는 App 자원 바인딩과 통합 인증을 사용한다.
@@ -113,15 +113,15 @@ flowchart LR
 | `NDCG@10`             | 순위가 뒤로 갈수록 할인해 계산한 랭킹 품질                          |
 | `Catalog Coverage@10` | 평가 사용자들의 상위 10개 추천이 전체 카탈로그를 얼마나 덮는지 측정 |
 
-[`server/mlflow-monitoring.ts`](../server/mlflow-monitoring.ts)는 다음 두 종류의 MLflow Trace를 전용 Experiment에 기록한다.
+[`server/mlflow-monitoring.ts`](../server/mlflow-monitoring.ts)는 Databricks 통합 인증과 MLflow Run API를 사용해 다음 세 종류의 Run을 전용 Experiment에 기록한다. 지표는 Artifact나 외부 저장소를 거치지 않고 MLflow Metric으로 직접 전송된다.
 
 - `sceneflow.deterministic_fallback_offline_evaluation`: 위 네 지표, 평가·제외 사용자 수, 데이터 규모, 평가 시간
 - `sceneflow.rag_recommendation`: 검색 출처, 검색 후보 수, 생성 출처, 전체 지연, degraded 여부
 - `sceneflow.ai_curation`: Foundation Model/폴백 출처, 지연 시간, 주제·영화 수, 영화 ID 고유 비율, 폴백 여부
 
-오프라인 평가는 카탈로그 스냅샷을 읽은 요청이 있을 때 최대 30분에 한 번 백그라운드에서 실행된다. AI Trace는 캐시되지 않은 실제 큐레이션 시도마다 생성된다. 사용자 ID, 원문 프롬프트, 리뷰, 모델 원문 응답, 전체 추천 목록은 MLflow에 보내지 않는다.
+오프라인 평가는 카탈로그 스냅샷을 읽은 요청이 있을 때 최대 30분에 한 번 백그라운드에서 실행된다. RAG와 AI 큐레이션 Run은 캐시되지 않은 실제 시도마다 생성된다. 사용자 ID, 원문 프롬프트, 리뷰, 모델 원문 응답, 전체 추천 목록은 MLflow에 보내지 않는다.
 
-[`databricks.yml`](../databricks.yml)은 `/Shared/media-ott-recommendations-monitoring` Experiment를 만들고 앱에 `CAN_EDIT`만 부여한다. [`app.yaml`](../app.yaml)은 바인딩된 ID를 `MLFLOW_EXPERIMENT_ID`로 주입한다. 로컬에서 이 변수가 없으면 평가 함수는 실행할 수 있지만 Trace 전송은 no-op이다.
+[`databricks.yml`](../databricks.yml)은 `/Shared/media-ott-recommendations-monitoring` Experiment를 만들고 앱에 `CAN_EDIT`만 부여한다. 개발 대상에서는 번들 모드 접두사가 적용되어 실제 이름이 `/Shared/[dev c_kang] media-ott-recommendations-monitoring`이 된다. [`app.yaml`](../app.yaml)은 바인딩된 ID를 `MLFLOW_EXPERIMENT_ID`로 주입한다. 로컬에서 이 변수가 없으면 평가 함수는 실행할 수 있지만 Run 전송은 no-op이다.
 
 이 평가는 합성 과거 데이터의 방향성 지표이지 실제 클릭·재생 전환의 인과 효과가 아니다. 특히 집계 품질 신호에는 숨긴 사용자의 기여가 남아 있으므로, 프로덕션 전에는 시간 기준 데이터 스냅샷과 온라인 실험을 추가해야 한다.
 
@@ -139,7 +139,7 @@ flowchart LR
 6. Foundation Model 응답은 검색된 후보 ID만 남도록 검증되고 완전한 RAG 결과가 30분간 캐시된다.
 7. 클라이언트가 큐레이션 API를 조회해 RAG 주제로 홈 화면을 갱신한다.
 
-8. 현재 스냅샷의 폴백 품질 평가가 30분 이내에 실행되지 않았다면 MLflow 평가 Trace를 백그라운드에서 기록한다.
+8. 현재 스냅샷의 폴백 품질 평가가 30분 이내에 실행되지 않았다면 MLflow 평가 Run을 백그라운드에서 기록한다.
 
 ## 8. 개발과 검증
 

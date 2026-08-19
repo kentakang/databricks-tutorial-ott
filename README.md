@@ -9,7 +9,7 @@ SceneFlow는 Databricks AppKit으로 만든 최종 소비자용 OTT 추천 영�
 - Unity Catalog의 최소 노출 뷰를 읽는 서비스 주체 실행
 - Databricks AI Search의 Delta Sync Hybrid Index로 취향 문맥에 맞는 미시청 작품 검색
 - 검색된 후보만 Foundation Model에 제공하는 RAG 추천과 결정론적 안전 폴백
-- MLflow 기반 시간순 오프라인 평가와 AI 큐레이션 Trace 모니터링
+- MLflow Run/Metric 기반 시간순 오프라인 평가와 RAG·AI 큐레이션 운영 모니터링
 - 추천 로직의 오프라인 단위 테스트
 
 Databricks 데이터 흐름과 코드 연결은 [docs/DATABRICKS_USAGE_KO.md](docs/DATABRICKS_USAGE_KO.md), 자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·RAG 아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0004-ai-search-rag-recommendations.md](docs/adr/0004-ai-search-rag-recommendations.md)에 기록되어 있습니다.
