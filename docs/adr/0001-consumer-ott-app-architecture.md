@@ -1,6 +1,6 @@
 # ADR 0001: Consumer OTT app architecture
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0004
 - Date: 2026-08-18
 
 ## Context
@@ -36,6 +36,8 @@ This gives maximum flexibility for future ML models but introduces two dependenc
 ### AI Search and Model Serving in the first release
 
 This would demonstrate more platform features, but the small catalog does not justify the added endpoint cost and operational complexity before the consumer journey is validated. AI Search remains a compatible future candidate-generation layer.
+
+ADR 0004 adopts this candidate-generation layer after the MVP was validated and the user explicitly requested a Databricks RAG architecture. The deterministic ranker remains the safety fallback and offline baseline.
 
 ## Consequences
 

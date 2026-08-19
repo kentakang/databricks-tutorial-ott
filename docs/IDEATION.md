@@ -37,7 +37,7 @@ SceneFlow is a consumer-style OTT home screen where Databricks AI turns governed
 
 1. Entry point: Open the SceneFlow home screen with a default synthetic demo persona.
 2. Core action: Choose another persona from the header selector and browse personalized rows.
-3. Databricks data or AI interaction: The server ranks unseen movies from Unity Catalog, then a bound Databricks Foundation Model organizes grounded candidates into four persona-specific themes.
+3. Databricks data or AI interaction: A bound Databricks AI Search Index retrieves unseen movies from governed catalog documents, then a bound Foundation Model organizes those grounded candidates into four persona-specific themes.
 4. Decision or artifact produced: The viewer explores several AI-curated collections and selects a movie after seeing a concise, evidence-backed recommendation reason.
 5. Follow-up action: Open the movie detail panel, read every critic commentary and written user review, or switch personas to compare the experience.
 
@@ -47,6 +47,7 @@ SceneFlow is a consumer-style OTT home screen where Databricks AI turns governed
 | --- | --- | --- | --- | --- |
 | Movie and user data | `media_dev.ott_recommendations` Unity Catalog tables | Read | Internal; user profile fields | Keep app permissions read-only |
 | Application queries | Existing `Serverless Starter Warehouse` (migration exception) | Read | Internal | Future compliant name: `media-recommendations-warehouse` |
+| RAG candidate retrieval | `media-ott-recommendations-search` endpoint and `media_dev.ott_recommendations.movie_recommendations_search` Delta Sync Hybrid Index | Query | Non-identifying movie documents and aggregate quality signals | Trigger a sync after catalog refresh |
 | AI theme curation | Existing `databricks-qwen3-next-80b-a3b-instruct` Foundation Model endpoint | Query | Synthetic taste and candidate metadata | App receives `CAN_QUERY` only |
 | Recommendation and AI monitoring | `media-ott-recommendations-monitoring` MLflow experiment | Write traces | Aggregate metrics only | App receives `CAN_EDIT`; no raw prompts or user IDs |
 | Consumer application | `media-ott-consumer-app` Databricks App | Read | Internal demo | Workspace-authenticated users only |
@@ -69,7 +70,7 @@ Consider data freshness, volume, latency, lineage, row/column-level controls, mo
 | Python app | Fast data iteration and a small deployment surface | Consumer OTT interactions and visual polish require more custom UI work | Rejected for this MVP |
 | Node.js AppKit app | Generated React/Vite client, Express server, typed SQL queries, and one runtime | Recommendation math must be implemented and tested in TypeScript | Selected |
 | Combined frontend and Python backend | Flexible ML implementation and polished UI | Two toolchains and a larger deployment and testing surface | Reconsider if a trained model becomes necessary |
-| Hybrid AI curation | Deterministic candidate safety with creative, persona-specific themes from Model Serving | Cold requests add inference latency and token cost | Selected for multi-theme home |
+| AI Search RAG curation | Hybrid semantic/keyword retrieval with governed movie grounding, followed by persona-specific themes from Model Serving | Adds an endpoint, index sync, embedding cost, and two-stage latency | Selected for the recommendation path |
 
 Do not choose a stack from familiarity alone. Evaluate the user experience, Databricks integrations, team skills, testability, deployment behavior, and operational burden.
 
@@ -77,9 +78,9 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 
 - Security, privacy, or compliance: Display names and behavioral data are synthetic demo inputs but remain internal; critic email is excluded from application queries; gender and region are not ranking features.
 - Workspace and network constraints: Use the existing AWS `us-east-2` serverless workspace because the current identity cannot create account-level workspaces.
-- Performance and availability expectations: The multi-theme home should appear within two seconds on a warm catalog cache; cold AI curation updates progressively and retains deterministic themes on failure.
-- Cost ceiling: Use one 2X-Small serverless SQL Warehouse, one existing pay-per-token Foundation Model endpoint, and a single Databricks App deployment.
-- Delivery timeline: One end-to-end MVP before adding AI Search or online model serving.
+- Performance and availability expectations: The multi-theme home should appear within two seconds from a warm RAG cache; cold retrieval and generation update progressively and retain deterministic themes on failure.
+- Cost ceiling: Use one 2X-Small serverless SQL Warehouse, one Standard AI Search endpoint with a triggered Delta Sync Index, one existing pay-per-token Foundation Model endpoint, and a single Databricks App deployment.
+- Delivery timeline: Migrate the validated MVP to AI Search RAG before the stakeholder walkthrough.
 - Adoption or change-management risk: The user selector must be visibly described as a sales-demo control so it is not mistaken for a production UX pattern.
 
 ## Riskiest assumptions and experiments
@@ -89,7 +90,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | A consumer UI makes the platform story clearer than a model workbench | The demo looks like a generic OTT clone | Build one complete home-screen prototype and run a five-minute walkthrough | A viewer can identify data, personalization, and governance moments without opening a notebook | Prototype completed; sales walkthrough pending |
 | The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Passed: `USR0001` and `USR0211` differed on all six titles |
 | SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Passed: deployed warm P95 1.072 seconds over ten requests |
-| The current ranker has measurable offline quality | UI differences could be mistaken for validated relevance | Temporally hold out each eligible user's latest positive title and evaluate the deployed TypeScript ranker | Establish a reproducible baseline before choosing a target | Baseline on 2026-08-19: 298 users, Recall@10 0.0403, MRR@10 0.0141, NDCG@10 0.0201, coverage 0.8550; no production-quality claim |
+| The deterministic fallback has measurable offline quality | UI differences could be mistaken for validated relevance | Temporally hold out each eligible user's latest positive title and evaluate the fallback TypeScript ranker | Preserve a reproducible safety baseline while AI Search is evaluated separately | Baseline on 2026-08-19: 298 users, Recall@10 0.0403, MRR@10 0.0141, NDCG@10 0.0201, coverage 0.8550; no production-quality claim |
 
 ## Decisions
 
@@ -103,13 +104,14 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | 2026-08-19 | Deploy the MVP with five read-only Unity Catalog bindings | The app needs only profiles, movies, interactions, quality signals, and critic commentary; source data remains inaccessible at runtime | Project team | Run the stakeholder sales walkthrough |
 | 2026-08-19 | Add hybrid AI theme curation with a grounded candidate set | Multiple consumer-style themes improve realism while deterministic validation prevents hallucinated or watched titles | User and project team | Measure cold latency, topic diversity, and sales-demo clarity |
 | 2026-08-19 | Monitor recommendation quality and AI curation with MLflow | The deployed algorithm is TypeScript, so temporal backtesting and aggregate traces avoid a drifting Python duplicate while exposing quality and fallback trends | User and project team | Establish baseline thresholds after the first deployed evaluation |
+| 2026-08-19 | Use AI Search RAG for primary recommendation retrieval | The user requested Databricks-native RAG; governed Hybrid retrieval provides semantic candidates while the existing generator and server guardrails prevent hallucinated or watched titles | User | Provision the search document, deploy the endpoint and index, then evaluate live retrieval quality |
 
 ## Open questions
 
 - Which cost-center value should replace the temporary development tag value `demo` before promotion beyond development?
-- Should a future version use AI Search embeddings for semantic candidate retrieval after the deterministic MVP is evaluated?
+- Which labeled retrieval queries should define the AI Search relevance evaluation set after the index is populated?
 - Which production identity model would replace the sales-demo-only user selector?
 
 ## Next discovery step
 
-Run the five-minute stakeholder sales walkthrough and record whether the consumer experience makes the governed-data and personalization story understandable without opening a notebook.
+Provision and sync the AI Search Index in the confirmed development Workspace, validate the deployed RAG flow, then run the five-minute stakeholder sales walkthrough.

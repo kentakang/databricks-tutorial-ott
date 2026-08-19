@@ -127,4 +127,36 @@ describe('buildHomeFeed', () => {
     ]);
     expect(feed.aiCuration.source).toBe('foundation-model');
   });
+
+  it('builds the recommendation feed from AI Search retrieval order and exposes grounded evidence', () => {
+    const user = profile('USR1', '드라마');
+    const catalog = [movie('MOV1', '드라마'), movie('MOV2', '공포'), movie('MOV3', '액션')];
+    const curation: ThemeCurationResult = {
+      source: 'foundation-model',
+      themes: [
+        {
+          themeId: 'rag-theme-1',
+          title: '검색 기반 추천',
+          subtitle: 'AI Search가 찾은 작품',
+          movieIds: ['MOV3', 'MOV1'],
+        },
+      ],
+    };
+
+    const feed = buildHomeFeed(snapshot([user], catalog), user.userId, curation, [
+      { movieId: 'MOV3', rank: 1, score: 0.9 },
+      { movieId: 'MOV1', rank: 2, score: 0.8 },
+    ]);
+
+    expect(feed.hero.movieId).toBe('MOV3');
+    expect(feed.hero.evidence).toContainEqual({
+      label: 'AI Search',
+      detail: '취향 문맥 Hybrid 검색 상위 1위',
+    });
+    expect(feed.aiCuration).toMatchObject({
+      label: 'Databricks RAG 추천',
+      retrievalSource: 'ai-search',
+      retrievedCandidateCount: 2,
+    });
+  });
 });

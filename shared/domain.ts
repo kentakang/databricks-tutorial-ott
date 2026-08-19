@@ -140,6 +140,8 @@ export interface HomeFeed {
     source: 'foundation-model' | 'deterministic-fallback' | 'ai-pending';
     label: string;
     themeCount: number;
+    retrievalSource: 'ai-search' | 'deterministic-fallback' | 'ai-pending';
+    retrievedCandidateCount: number;
   };
   tasteSummary: {
     headline: string;

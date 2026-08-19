@@ -1,16 +1,31 @@
 import { analytics, createApp, getExecutionContext, server } from '@databricks/appkit';
+import { aiSearch } from '@databricks/appkit/beta';
 import { AiCurationService, createFallbackCuration } from './ai-curation.js';
+import { AiSearchRecommendationRetriever } from './ai-search-retrieval.js';
 import { CatalogRepository } from './catalog-repository.js';
 import { createModelMonitoring } from './mlflow-monitoring.js';
 import { buildMovieReviews } from './movie-reviews.js';
 import { buildCurationContext, buildHomeFeed } from './recommendation-engine.js';
+import { RagRecommendationService } from './rag-recommendation.js';
 
 const userIdPattern = /^[a-zA-Z0-9_-]{1,64}$/;
 const movieIdPattern = /^[a-zA-Z0-9_-]{1,64}$/;
 const evaluationIntervalMs = 30 * 60 * 1000;
 
 await createApp({
-  plugins: [analytics(), server()],
+  plugins: [
+    analytics(),
+    aiSearch({
+      indexes: {
+        recommendations: {
+          columns: ['movie_id'],
+          queryType: 'hybrid',
+          numResults: 64,
+        },
+      },
+    }),
+    server(),
+  ],
   onPluginsReady(appkit) {
     const repository = new CatalogRepository((statement) => appkit.analytics.query(statement));
     const monitoring = createModelMonitoring();
@@ -26,13 +41,13 @@ await createApp({
         void monitoring
           .evaluateRecommendations(snapshot)
           .then((metrics) => {
-            console.info('Recommendation quality evaluation completed.', {
+            console.info('Deterministic fallback quality evaluation completed.', {
               mlflowEnabled: monitoring.enabled,
               ...metrics,
             });
           })
           .catch((error: unknown) => {
-            console.error('Recommendation quality evaluation failed.', error);
+            console.error('Deterministic fallback quality evaluation failed.', error);
           })
           .finally(() => {
             evaluationRunning = false;
@@ -60,6 +75,21 @@ await createApp({
       },
       Date.now,
       (context, operation) => monitoring.observeCuration(context, operation)
+    );
+    const aiSearchRetriever = new AiSearchRecommendationRetriever(async (request) => {
+      return appkit.aiSearch.query<{ movie_id: string }>('recommendations', {
+        columns: request.columns,
+        numResults: request.numResults,
+        queryText: request.queryText,
+        queryType: request.queryType,
+      });
+    });
+    const ragRecommendations = new RagRecommendationService(
+      (context, validMovieIds, excludedMovieIds) =>
+        aiSearchRetriever.retrieve(context, validMovieIds, excludedMovieIds),
+      (context) => aiCuration.curate(context),
+      Date.now,
+      (operation) => monitoring.observeRagRecommendation(operation)
     );
 
     appkit.server.extend((app) => {
@@ -97,15 +127,14 @@ await createApp({
             return;
           }
 
-          const context = buildCurationContext(snapshot, userId);
-          const cachedCuration = aiCuration.getCached(userId);
-          const curation = cachedCuration ?? {
-            ...createFallbackCuration(context),
+          const cachedRecommendation = ragRecommendations.getCached(userId);
+          const curation = cachedRecommendation?.curation ?? {
+            ...createFallbackCuration(buildCurationContext(snapshot, userId)),
             source: 'ai-pending' as const,
           };
-          if (!cachedCuration) void aiCuration.curate(context);
+          if (!cachedRecommendation) void ragRecommendations.recommend(snapshot, userId);
           response.setHeader('Cache-Control', 'private, no-store');
-          response.json(buildHomeFeed(snapshot, userId, curation));
+          response.json(buildHomeFeed(snapshot, userId, curation, cachedRecommendation?.retrieval.movies));
         } catch (error) {
           console.error('Failed to build the personalized home feed.', error);
           response.status(503).json({
@@ -128,9 +157,9 @@ await createApp({
             return;
           }
 
-          const curation = await aiCuration.curate(buildCurationContext(snapshot, userId));
+          const recommendation = await ragRecommendations.recommend(snapshot, userId);
           response.setHeader('Cache-Control', 'private, no-store');
-          response.json(buildHomeFeed(snapshot, userId, curation));
+          response.json(buildHomeFeed(snapshot, userId, recommendation.curation, recommendation.retrieval.movies));
         } catch (error) {
           console.error('Failed to build AI curation.', error);
           response.status(503).json({

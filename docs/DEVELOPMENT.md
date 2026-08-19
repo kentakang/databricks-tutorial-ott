@@ -1,6 +1,6 @@
 # Development environment
 
-This repository is prepared for Databricks App ideation and implementation with Codex. The application framework is intentionally not selected yet; choose it only after documenting the product and data requirements in `docs/IDEATION.md`.
+This repository contains the selected Databricks AppKit Node.js/React implementation documented in `docs/IDEATION.md`. Extend the generated conventions in place; do not re-scaffold the application when adding Databricks resources such as AI Search.
 
 ## Required local tools
 
@@ -40,7 +40,7 @@ For Databricks behavior, prefer the installed CLI help and the official Databric
 
 ## Databricks App lifecycle
 
-After the product direction and framework are selected:
+For the current AppKit project:
 
 ```powershell
 # Create an AppKit project interactively when the repository is ready for scaffolding.

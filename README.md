@@ -7,19 +7,21 @@ SceneFlow는 Databricks AppKit으로 만든 최종 소비자용 OTT 추천 영�
 - React 19 기반 반응형 OTT 화면
 - AppKit Express 서버와 Analytics 플러그인
 - Unity Catalog의 최소 노출 뷰를 읽는 서비스 주체 실행
-- 명시적 평점, 완주율, 재시청, 콘텐츠 유사도, 선호 장르, 작품 반응을 조합한 결정론적 추천기
+- Databricks AI Search의 Delta Sync Hybrid Index로 취향 문맥에 맞는 미시청 작품 검색
+- 검색된 후보만 Foundation Model에 제공하는 RAG 추천과 결정론적 안전 폴백
 - MLflow 기반 시간순 오프라인 평가와 AI 큐레이션 Trace 모니터링
 - 추천 로직의 오프라인 단위 테스트
 
-Databricks 데이터 흐름과 코드 연결은 [docs/DATABRICKS_USAGE_KO.md](docs/DATABRICKS_USAGE_KO.md), 자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0001-consumer-ott-app-architecture.md](docs/adr/0001-consumer-ott-app-architecture.md)에 기록되어 있습니다.
+Databricks 데이터 흐름과 코드 연결은 [docs/DATABRICKS_USAGE_KO.md](docs/DATABRICKS_USAGE_KO.md), 자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·RAG 아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0004-ai-search-rag-recommendations.md](docs/adr/0004-ai-search-rag-recommendations.md)에 기록되어 있습니다.
 
 ## 로컬 실행
 
-Node.js 22+, npm, Databricks CLI 및 Unity Catalog 데이터가 필요합니다.
+Node.js 22+, npm, Databricks CLI, Unity Catalog 데이터 및 동기화된 AI Search Index가 필요합니다.
 
 ```powershell
 Copy-Item .env.example .env
-# .env의 Workspace host, CLI profile, SQL Warehouse ID를 로컬 값으로 수정
+# .env의 Workspace host, CLI profile, SQL Warehouse ID, Serving Endpoint,
+# AI Search Index 이름을 로컬 값으로 수정
 npm ci
 npm run dev
 ```
@@ -41,10 +43,16 @@ databricks bundle validate -t dev -p <profile> --var "sql_warehouse_id=<warehous
 
 ## 배포
 
-`databricks.yml`은 앱 이름 `media-ott-consumer-app`과 번들 이름 `media-ott-recommendations`를 사용합니다. SQL Warehouse에는 `CAN_USE`, 앱이 읽는 테이블·뷰 다섯 개에는 `SELECT`만 부여합니다.
+`databricks.yml`은 앱 이름 `media-ott-consumer-app`과 번들 이름 `media-ott-recommendations`를 사용합니다. 배포 전에 검색 원본 Delta 테이블을 준비해야 합니다. 배포는 Standard AI Search Endpoint와 Triggered Delta Sync Hybrid Index를 만들고, 앱에는 해당 인덱스 `SELECT`, SQL Warehouse `CAN_USE`, Foundation Model `CAN_QUERY`, 기존 앱 데이터 객체 `SELECT`만 부여합니다.
 
 ```powershell
+# 최초 배포 또는 원본 데이터 재생성
+pwsh ./scripts/provision-data.ps1 -WarehouseId <warehouse-id> -Profile <profile>
+
+# 원격 Endpoint, Index, App 생성·변경 계획을 확인한 뒤 실행
 databricks apps deploy -t dev -p <profile> --var "sql_warehouse_id=<warehouse-id>"
 ```
+
+Triggered Index이므로 이후 `movie_search_documents`만 갱신했다면 `databricks vector-search-indexes sync-index media_dev.ott_recommendations.movie_recommendations_search -p <profile>`로 명시적으로 동기화합니다.
 
 개발 환경은 `media_dev.ott_recommendations`를 사용합니다. 다른 환경으로 승격할 때는 번들 변수와 `app.yaml`의 카탈로그·스키마 설정을 함께 변경하고 승인된 비용센터 태그를 적용해야 합니다.

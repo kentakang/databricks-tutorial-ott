@@ -1,6 +1,6 @@
 # ADR 0003: MLflow recommendation evaluation and monitoring
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0004
 - Date: 2026-08-19
 
 ## Context
@@ -15,8 +15,9 @@ Bind a bundle-managed MLflow experiment to the Databricks App with `CAN_EDIT` an
 
 Apply two complementary measurements:
 
-1. Evaluate the deterministic ranker with temporal leave-one-out backtesting. For each eligible synthetic user, remove the latest positive title, rank it against unwatched candidates using the remaining history, and aggregate `Recall@10`, `MRR@10`, `NDCG@10`, and `Catalog Coverage@10`.
-2. Trace each uncached AI curation attempt with aggregate inputs and outputs: candidate count, positive-history count, source, latency, theme count, movie count, unique-movie ratio, and whether a deterministic fallback was used.
+1. Evaluate the deterministic fallback ranker with temporal leave-one-out backtesting. For each eligible synthetic user, remove the latest positive title, rank it against unwatched candidates using the remaining history, and aggregate `Recall@10`, `MRR@10`, `NDCG@10`, and `Catalog Coverage@10`.
+2. Trace each uncached RAG recommendation with retrieval source, retrieved candidate count, curation source, latency, and degraded status.
+3. Trace each uncached AI curation attempt with aggregate inputs and outputs: candidate count, positive-history count, source, latency, theme count, movie count, unique-movie ratio, and whether a deterministic fallback was used.
 
 The evaluation runs at most once every 30 minutes when an application request loads a catalog snapshot. No raw prompts, reviews, user IDs, model responses, or complete recommendation lists are exported to MLflow. When no experiment is configured, the same offline evaluation remains available locally and trace export becomes a no-op. Monitoring failures do not fail consumer requests.
 
@@ -37,7 +38,7 @@ An LLM judge can measure subjective theme quality, but it adds inference cost an
 ## Consequences
 
 - The deployed app receives `CAN_EDIT` on one dedicated MLflow experiment and no additional data permissions.
-- Offline metrics use the actual production TypeScript ranker and current governed snapshot.
+- Offline metrics use the actual deterministic fallback implementation and current governed snapshot. They do not measure AI Search retrieval quality.
 - The backtest is directional evidence on synthetic data, not a causal estimate of online recommendation lift. Aggregated quality signals still include the held-out user's contribution.
 - Evaluation is traffic-triggered rather than a guaranteed wall-clock schedule. A Lakeflow Job should replace it if evaluation must run while the app is idle or if the catalog grows beyond in-process evaluation scale.
 - The Apache-2.0 `mlflow-tracing` dependency is maintained in the MLflow repository and is already a transitive AppKit dependency; declaring it directly makes the runtime API explicit.

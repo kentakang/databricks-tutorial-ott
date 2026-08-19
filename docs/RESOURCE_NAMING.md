@@ -9,6 +9,8 @@ The project applies `DBX-STD-NAMING-001` version 1.0.0 to every newly created re
 | Schema | `ott_recommendations` | `{product-or-subject}` |
 | Source volume | `media_dev.ott_recommendations.source_datasets` | `{content-or-purpose}` |
 | Databricks App | `media-ott-consumer-app` | `{domain}-{product}-{purpose}-app` |
+| AI Search endpoint | `media-ott-recommendations-search` | `{domain}-{product}-{purpose}` |
+| AI Search index | `media_dev.ott_recommendations.movie_recommendations_search` | descriptive business purpose |
 
 Tables and views use lowercase plural or descriptive business-object names without physical-type prefixes or suffixes. Bundle logical keys and application configuration keys use `snake_case`.
 

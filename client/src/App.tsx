@@ -128,6 +128,8 @@ export default function App() {
                   ...current.aiCuration,
                   source: 'deterministic-fallback',
                   label: '취향 기반 큐레이션',
+                  retrievalSource: 'deterministic-fallback',
+                  retrievedCandidateCount: 0,
                 },
               }
             : current

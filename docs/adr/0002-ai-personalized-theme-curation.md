@@ -1,6 +1,6 @@
 # ADR 0002: AI-personalized theme curation
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0004
 - Date: 2026-08-19
 
 ## Context
@@ -44,3 +44,5 @@ This gives predictable latency and cost, but adds a job, storage table, refresh 
 - The app service principal gains only `CAN_QUERY` on one existing serving endpoint.
 - Prompts exclude birth year, household type, user ID, and other demographic fields.
 - The app remains usable when Model Serving is unavailable, but the UI identifies deterministic fallback curation rather than claiming AI generation.
+
+ADR 0004 replaces deterministic candidate selection in the primary path with AI Search Hybrid retrieval. The validation, theme generation, progressive response, and deterministic fallback decisions in this ADR remain in force.

@@ -1,5 +1,6 @@
 bundle:
   name: media-ott-recommendations
+  engine: direct
 
 variables:
   sql_warehouse_id:
@@ -13,11 +14,36 @@ variables:
   serving_endpoint_name:
     description: Existing Databricks Foundation Model endpoint used for AI curation
     default: databricks-qwen3-next-80b-a3b-instruct
+  ai_search_endpoint_name:
+    description: AI Search endpoint used for semantic recommendation retrieval
+    default: media-ott-recommendations-search
+  embedding_model_endpoint_name:
+    description: Databricks embedding model used by the Delta Sync AI Search index
+    default: databricks-qwen3-embedding-0-6b
   mlflow_experiment_name:
     description: Workspace path for SceneFlow recommendation and AI curation monitoring
     default: /Shared/media-ott-recommendations-monitoring
 
 resources:
+  vector_search_endpoints:
+    recommendation_search:
+      name: ${var.ai_search_endpoint_name}
+      endpoint_type: STANDARD
+  vector_search_indexes:
+    movie_recommendations:
+      name: ${var.catalog_name}.${var.schema_name}.movie_recommendations_search
+      endpoint_name: ${resources.vector_search_endpoints.recommendation_search.name}
+      primary_key: movie_id
+      index_type: DELTA_SYNC
+      index_subtype: HYBRID
+      delta_sync_index_spec:
+        source_table: ${var.catalog_name}.${var.schema_name}.movie_search_documents
+        pipeline_type: TRIGGERED
+        columns_to_sync:
+          - movie_id
+        embedding_source_columns:
+          - name: retrieval_text
+            embedding_model_endpoint_name: ${var.embedding_model_endpoint_name}
   experiments:
     recommendation_monitoring:
       name: ${var.mlflow_experiment_name}
@@ -39,6 +65,11 @@ resources:
           serving_endpoint:
             name: ${var.serving_endpoint_name}
             permission: CAN_QUERY
+        - name: vector-search-index
+          uc_securable:
+            securable_full_name: ${resources.vector_search_indexes.movie_recommendations.name}
+            securable_type: TABLE
+            permission: SELECT
         - name: mlflow-experiment
           experiment:
             experiment_id: ${resources.experiments.recommendation_monitoring.id}

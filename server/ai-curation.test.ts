@@ -60,6 +60,9 @@ describe('AiCurationService', () => {
 
     const first = await service.curate(context());
     const second = await service.curate(context());
+    const changedContext = context();
+    changedContext.candidates = [...changedContext.candidates].reverse();
+    await service.curate(changedContext);
     const movieIds = first.themes.flatMap((theme) => theme.movieIds);
 
     expect(first.source).toBe('foundation-model');
@@ -67,7 +70,7 @@ describe('AiCurationService', () => {
     expect(first.themes.every((theme) => theme.movieIds.length === 8)).toBe(true);
     expect(new Set(movieIds).size).toBe(movieIds.length);
     expect(second).toBe(first);
-    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledTimes(2);
   });
 
   it('falls back to four deterministic themes when model output is invalid', async () => {

@@ -10,6 +10,7 @@ import type {
   ViewerInteraction,
 } from '../shared/domain.js';
 import { createFallbackCuration, type CurationContext, type ThemeCurationResult } from './ai-curation.js';
+import type { RetrievedMovie } from './ai-search-retrieval.js';
 
 interface PreferenceAnchor {
   movie: Movie;
@@ -22,6 +23,7 @@ interface RankedMovie {
   score: number;
   positiveAnchor: PreferenceAnchor | null;
   sharedTokens: string[];
+  retrievalRank?: number;
 }
 
 const stopWords = new Set(['그리고', '그러나', '대한', '통해', '위한', '속에서', '사이', '이야기', '영화']);
@@ -190,6 +192,9 @@ function evidenceFor(
   return [
     { label: '취향 신호', detail: `${genreLabel(profile.preferredGenre)} · ${ranked.movie.genreDetail}` },
     { label: '시청 근거', detail: anchorDetail },
+    ...(ranked.retrievalRank === undefined
+      ? []
+      : [{ label: 'AI Search', detail: `취향 문맥 Hybrid 검색 상위 ${ranked.retrievalRank}위` }]),
     { label: '작품 신뢰도', detail: qualityDetail },
   ];
 }
@@ -286,6 +291,32 @@ export function rankPersonalized(
   return { ranked, positiveAnchors, negativeAnchors, interactions };
 }
 
+function applyRetrievedRanking(
+  ranking: ReturnType<typeof rankPersonalized>,
+  retrievedMovies: RetrievedMovie[]
+): ReturnType<typeof rankPersonalized> {
+  if (retrievedMovies.length === 0) return ranking;
+
+  const rankedById = new Map(ranking.ranked.map((item) => [item.movie.movieId, item]));
+  const denominator = Math.max(1, retrievedMovies.length - 1);
+  const ranked = retrievedMovies.flatMap((retrieved, index) => {
+    const item = rankedById.get(retrieved.movieId);
+    if (!item) return [];
+
+    const retrievalStrength = 1 - (index / denominator) * 0.35;
+    const deterministicStrength = clamp(0.5 + item.score);
+    return [
+      {
+        ...item,
+        score: retrievalStrength * 0.75 + deterministicStrength * 0.25,
+        retrievalRank: retrieved.rank,
+      },
+    ];
+  });
+
+  return { ...ranking, ranked };
+}
+
 function curationContext(
   snapshot: CatalogSnapshot,
   profile: UserProfile,
@@ -326,22 +357,28 @@ function curationContext(
   };
 }
 
-export function buildCurationContext(snapshot: CatalogSnapshot, userId: string): CurationContext {
+export function buildCurationContext(
+  snapshot: CatalogSnapshot,
+  userId: string,
+  retrievedMovies: RetrievedMovie[] = []
+): CurationContext {
   const profile = snapshot.users.find((user) => user.userId === userId);
   if (!profile) throw new Error(`Unknown user: ${userId}`);
 
-  return curationContext(snapshot, profile, rankPersonalized(snapshot, profile));
+  const ranking = applyRetrievedRanking(rankPersonalized(snapshot, profile), retrievedMovies);
+  return curationContext(snapshot, profile, ranking);
 }
 
 export function buildHomeFeed(
   snapshot: CatalogSnapshot,
   userId: string,
-  suppliedCuration?: ThemeCurationResult
+  suppliedCuration?: ThemeCurationResult,
+  retrievedMovies: RetrievedMovie[] = []
 ): HomeFeed {
   const profile = snapshot.users.find((user) => user.userId === userId);
   if (!profile) throw new Error(`Unknown user: ${userId}`);
 
-  const ranking = rankPersonalized(snapshot, profile);
+  const ranking = applyRetrievedRanking(rankPersonalized(snapshot, profile), retrievedMovies);
   const { ranked, interactions } = ranking;
   if (ranked.length === 0) throw new Error('No unwatched movies are available to recommend.');
 
@@ -422,12 +459,21 @@ export function buildHomeFeed(
     aiCuration: {
       source: curation.source,
       label:
-        curation.source === 'foundation-model'
-          ? 'Databricks AI 큐레이션'
-          : curation.source === 'ai-pending'
-            ? 'Databricks AI가 주제 구성 중'
-            : '취향 기반 큐레이션',
+        retrievedMovies.length > 0 && curation.source === 'foundation-model'
+          ? 'Databricks RAG 추천'
+          : retrievedMovies.length > 0
+            ? 'Databricks AI Search 추천'
+            : curation.source === 'ai-pending'
+              ? 'Databricks RAG 추천 준비 중'
+              : '취향 기반 큐레이션',
       themeCount: aiThemes.length,
+      retrievalSource:
+        retrievedMovies.length > 0
+          ? 'ai-search'
+          : curation.source === 'ai-pending'
+            ? 'ai-pending'
+            : 'deterministic-fallback',
+      retrievedCandidateCount: retrievedMovies.length,
     },
     tasteSummary: {
       headline: `${genreLabel(profile.preferredGenre)}에서 시작해 새로운 결을 발견하는 취향`,

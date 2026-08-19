@@ -305,6 +305,34 @@ SELECT
 FROM $namespace.critic_reviews r
 JOIN $namespace.critics c USING (critic_id)
 "@,
+    @"
+CREATE OR REPLACE TABLE $namespace.movie_search_documents
+COMMENT 'Non-identifying movie documents used by the SceneFlow AI Search recommendation index.'
+TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')
+AS
+SELECT
+  m.movie_id,
+  CONCAT_WS(
+    CHAR(10),
+    CONCAT('제목: ', m.title),
+    CONCAT('주 장르: ', m.primary_genre),
+    CONCAT('세부 장르: ', m.genre_detail),
+    CONCAT('배경: ', m.setting),
+    CONCAT('주인공: ', m.protagonist),
+    CONCAT('핵심 갈등: ', m.core_conflict),
+    CONCAT('키워드: ', m.keywords),
+    CONCAT('줄거리: ', m.logline),
+    CONCAT('상영 시간: ', CAST(m.runtime_minutes AS STRING), '분'),
+    CONCAT('SceneFlow 오리지널: ', CASE WHEN m.is_platform_original THEN '예' ELSE '아니오' END),
+    CONCAT(
+      '작품 반응: 평균 완주율 ', CAST(ROUND(q.average_completion_pct) AS STRING),
+      '%, 시청자 평점 ', COALESCE(CAST(ROUND(q.average_user_rating, 1) AS STRING), '없음'),
+      ', 평론가 점수 ', COALESCE(CAST(ROUND(q.average_critic_score) AS STRING), '없음')
+    )
+  ) AS retrieval_text
+FROM $namespace.movies m
+LEFT JOIN $namespace.movie_quality_signals q USING (movie_id)
+"@,
     "ALTER CATALOG $Catalog SET TAGS ('environment' = 'dev', 'domain' = 'media', 'product' = 'ott_recommendations', 'managed_by' = 'manual', 'data_classification' = 'internal')",
     "ALTER SCHEMA $namespace SET TAGS ('environment' = 'dev', 'domain' = 'media', 'product' = 'ott_recommendations', 'owner_group' = 'grp-dbx-ott-recommendations-owners', 'cost_center' = 'demo', 'managed_by' = 'manual', 'data_classification' = 'internal')",
     "ALTER VOLUME $namespace.$SourceVolume SET TAGS ('environment' = 'dev', 'domain' = 'media', 'product' = 'ott_recommendations', 'managed_by' = 'manual', 'data_classification' = 'internal')"
@@ -316,7 +344,8 @@ $taggedTables = @(
     "viewing_history",
     "user_reviews",
     "critic_reviews",
-    "critics"
+    "critics",
+    "movie_search_documents"
 )
 
 $taggedViews = @(
@@ -346,6 +375,7 @@ UNION ALL SELECT 'viewing_history', COUNT(*) FROM $namespace.viewing_history
 UNION ALL SELECT 'user_reviews', COUNT(*) FROM $namespace.user_reviews
 UNION ALL SELECT 'critic_reviews', COUNT(*) FROM $namespace.critic_reviews
 UNION ALL SELECT 'critics', COUNT(*) FROM $namespace.critics
+UNION ALL SELECT 'movie_search_documents', COUNT(*) FROM $namespace.movie_search_documents
 ORDER BY object_name
 "@
 

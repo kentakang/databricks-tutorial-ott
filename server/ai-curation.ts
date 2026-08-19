@@ -256,32 +256,38 @@ export class AiCurationService {
     private readonly observe: CurationObserver = (_context, operation) => operation()
   ) {}
 
-  getCached(userId: string): ThemeCurationResult | null {
-    const cached = this.cache.get(userId);
+  private cacheKey(context: CurationContext): string {
+    return `${context.userId}:${context.candidates.map((candidate) => candidate.movieId).join(',')}`;
+  }
+
+  getCached(context: CurationContext): ThemeCurationResult | null {
+    const key = this.cacheKey(context);
+    const cached = this.cache.get(key);
     if (!cached) return null;
     if (cached.expiresAt <= this.now()) {
-      this.cache.delete(userId);
+      this.cache.delete(key);
       return null;
     }
     return cached.result;
   }
 
   async curate(context: CurationContext): Promise<ThemeCurationResult> {
-    const cached = this.getCached(context.userId);
+    const key = this.cacheKey(context);
+    const cached = this.getCached(context);
     if (cached) return cached;
 
-    const active = this.pending.get(context.userId);
+    const active = this.pending.get(key);
     if (active) return active;
 
     const request = this.observe(context, () => this.generate(context));
-    this.pending.set(context.userId, request);
+    this.pending.set(key, request);
     try {
       const result = await request;
       const ttl = result.source === 'foundation-model' ? AI_CACHE_TTL_MS : FALLBACK_CACHE_TTL_MS;
-      this.cache.set(context.userId, { expiresAt: this.now() + ttl, result });
+      this.cache.set(key, { expiresAt: this.now() + ttl, result });
       return result;
     } finally {
-      this.pending.delete(context.userId);
+      this.pending.delete(key);
     }
   }
 
