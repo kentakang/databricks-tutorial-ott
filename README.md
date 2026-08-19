@@ -10,7 +10,7 @@ SceneFlow는 Databricks AppKit으로 만든 최종 소비자용 OTT 추천 영�
 - 명시적 평점, 완주율, 재시청, 콘텐츠 유사도, 선호 장르, 작품 반응을 조합한 결정론적 추천기
 - 추천 로직의 오프라인 단위 테스트
 
-자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0001-consumer-ott-app-architecture.md](docs/adr/0001-consumer-ott-app-architecture.md)에 기록되어 있습니다.
+Databricks 데이터 흐름과 코드 연결은 [docs/DATABRICKS_USAGE_KO.md](docs/DATABRICKS_USAGE_KO.md), 자원 이름과 기존 Warehouse 예외는 [docs/RESOURCE_NAMING.md](docs/RESOURCE_NAMING.md), 제품·아키텍처 결정은 [docs/IDEATION.md](docs/IDEATION.md)와 [docs/adr/0001-consumer-ott-app-architecture.md](docs/adr/0001-consumer-ott-app-architecture.md)에 기록되어 있습니다.
 
 ## 로컬 실행
 
