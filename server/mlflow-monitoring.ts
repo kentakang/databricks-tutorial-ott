@@ -1,8 +1,7 @@
-import * as mlflow from 'mlflow-tracing';
+import { WorkspaceClient } from '@databricks/sdk-experimental';
 import type { CatalogSnapshot } from '../shared/domain.js';
 import type { CurationContext, ThemeCurationResult } from './ai-curation.js';
 import { evaluateRecommendationQuality, type RecommendationEvaluationMetrics } from './recommendation-evaluation.js';
-import type { RagRecommendationResult } from './rag-recommendation.js';
 
 const EVALUATION_CUTOFF = 10;
 
@@ -21,9 +20,71 @@ interface CurationMetrics {
   latencyMs: number;
 }
 
+type ExperimentsClient = Pick<WorkspaceClient['experiments'], 'createRun' | 'logBatch' | 'updateRun'>;
+type ExperimentsClientFactory = (host: string | undefined) => ExperimentsClient;
+
+interface MlflowRunRecord {
+  name: string;
+  startTime: number;
+  metrics: Record<string, number>;
+  params?: Record<string, string | number>;
+  tags?: Record<string, string>;
+  status?: 'FAILED' | 'FINISHED';
+}
+
+class MlflowRunLogger {
+  constructor(
+    private readonly experimentId: string,
+    private readonly experiments: ExperimentsClient
+  ) {}
+
+  async log(record: MlflowRunRecord): Promise<void> {
+    let runId: string | undefined;
+
+    try {
+      const created = await this.experiments.createRun({
+        experiment_id: this.experimentId,
+        run_name: record.name,
+        start_time: record.startTime,
+        tags: Object.entries(record.tags ?? {}).map(([key, value]) => ({ key, value })),
+      });
+      runId = created.run?.info?.run_id;
+      if (!runId) throw new Error('MLflow createRun response did not include a run ID.');
+
+      const timestamp = Date.now();
+      await this.experiments.logBatch({
+        run_id: runId,
+        metrics: Object.entries(record.metrics).map(([key, value]) => ({
+          key,
+          value,
+          timestamp,
+          step: 0,
+        })),
+        params: Object.entries(record.params ?? {}).map(([key, value]) => ({
+          key,
+          value: String(value),
+        })),
+      });
+      await this.experiments.updateRun({
+        run_id: runId,
+        end_time: Date.now(),
+        status: record.status ?? 'FINISHED',
+      });
+    } catch (error) {
+      if (runId && record.status !== 'FAILED') {
+        try {
+          await this.experiments.updateRun({ run_id: runId, end_time: Date.now(), status: 'FAILED' });
+        } catch (updateError) {
+          console.error('Failed to mark the MLflow monitoring run as failed.', updateError);
+        }
+      }
+      throw error;
+    }
+  }
+}
+
 export interface ModelMonitoring {
   readonly enabled: boolean;
-  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult>;
   observeCuration(
     context: CurationContext,
     operation: () => Promise<ThemeCurationResult>
@@ -46,43 +107,13 @@ function curationMetrics(result: ThemeCurationResult, latencyMs: number): Curati
 class MlflowModelMonitoring implements ModelMonitoring {
   readonly enabled = true;
 
-  async observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
-    const startedAt = Date.now();
-    const span = mlflow.startSpan({
-      name: 'sceneflow.rag_recommendation',
-      spanType: mlflow.SpanType.CHAIN,
-      inputs: { retrievalStrategy: 'ai-search-hybrid' },
-      attributes: {
-        'sceneflow.component': 'rag-recommendation',
-        'sceneflow.evaluation.version': '1',
-      },
-    });
+  constructor(private readonly logger: MlflowRunLogger) {}
 
+  private async log(record: MlflowRunRecord): Promise<void> {
     try {
-      const result = await operation();
-      span.end({
-        outputs: {
-          retrievalSource: result.retrieval.source,
-          retrievedCandidateCount: result.retrieval.movies.length,
-          curationSource: result.curation.source,
-          latencyMs: Date.now() - startedAt,
-        },
-        attributes: {
-          'sceneflow.rag.retrieval_source': result.retrieval.source,
-          'sceneflow.rag.degraded':
-            result.retrieval.source !== 'ai-search' || result.curation.source !== 'foundation-model',
-        },
-        status: mlflow.SpanStatusCode.OK,
-      });
-      return result;
+      await this.logger.log(record);
     } catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(String(error));
-      span.recordException(normalizedError);
-      span.end({
-        outputs: { latencyMs: Date.now() - startedAt },
-        status: mlflow.SpanStatusCode.ERROR,
-      });
-      throw error;
+      console.error('Failed to log MLflow monitoring metrics; application behavior is unchanged.', error);
     }
   }
 
@@ -91,75 +122,82 @@ class MlflowModelMonitoring implements ModelMonitoring {
     operation: () => Promise<ThemeCurationResult>
   ): Promise<ThemeCurationResult> {
     const startedAt = Date.now();
-    const span = mlflow.startSpan({
-      name: 'sceneflow.ai_curation',
-      spanType: mlflow.SpanType.CHAIN,
-      inputs: {
-        candidateCount: context.candidates.length,
-        positiveHistoryCount: context.positiveHistory.length,
-        preferredGenre: context.preferredGenre,
-      },
-      attributes: {
-        'sceneflow.component': 'ai-curation',
-        'sceneflow.evaluation.version': '1',
-      },
-    });
 
     try {
       const result = await operation();
       const metrics = curationMetrics(result, Date.now() - startedAt);
-      span.end({
-        outputs: metrics,
-        attributes: {
-          'sceneflow.curation.source': result.source,
-          'sceneflow.curation.degraded': result.source !== 'foundation-model',
+      await this.log({
+        name: 'sceneflow.ai_curation',
+        startTime: startedAt,
+        metrics: {
+          theme_count: metrics.themeCount,
+          recommended_movie_count: metrics.recommendedMovieCount,
+          unique_movie_ratio: metrics.uniqueMovieRatio,
+          latency_ms: metrics.latencyMs,
+          degraded: result.source === 'foundation-model' ? 0 : 1,
         },
-        status: mlflow.SpanStatusCode.OK,
+        params: {
+          candidate_count: context.candidates.length,
+          positive_history_count: context.positiveHistory.length,
+          preferred_genre: context.preferredGenre,
+        },
+        tags: {
+          'sceneflow.component': 'ai-curation',
+          'sceneflow.evaluation.version': '1',
+          'sceneflow.curation.source': result.source,
+        },
       });
       return result;
     } catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(String(error));
-      span.recordException(normalizedError);
-      span.end({
-        outputs: { latencyMs: Date.now() - startedAt },
-        status: mlflow.SpanStatusCode.ERROR,
+      await this.log({
+        name: 'sceneflow.ai_curation',
+        startTime: startedAt,
+        metrics: { latency_ms: Date.now() - startedAt },
+        tags: {
+          'sceneflow.component': 'ai-curation',
+          'sceneflow.evaluation.version': '1',
+          'sceneflow.error.type': error instanceof Error ? error.name : 'UnknownError',
+        },
+        status: 'FAILED',
       });
       throw error;
     }
   }
 
-  evaluateRecommendations(snapshot: CatalogSnapshot): Promise<RecommendationEvaluationMetrics> {
+  async evaluateRecommendations(snapshot: CatalogSnapshot): Promise<RecommendationEvaluationMetrics> {
     const startedAt = Date.now();
     const metrics = evaluateRecommendationQuality(snapshot, EVALUATION_CUTOFF);
-    const span = mlflow.startSpan({
-      name: 'sceneflow.deterministic_fallback_offline_evaluation',
-      spanType: mlflow.SpanType.RERANKER,
-      inputs: {
-        userCount: snapshot.users.length,
-        movieCount: snapshot.movies.length,
-        interactionCount: snapshot.interactions.length,
-        evaluationMethod: 'temporal-leave-one-out',
+    await this.log({
+      name: 'sceneflow.recommendation_offline_evaluation',
+      startTime: startedAt,
+      metrics: {
+        [`recall_at_${metrics.k}`]: metrics.recallAtK,
+        [`mrr_at_${metrics.k}`]: metrics.meanReciprocalRankAtK,
+        [`ndcg_at_${metrics.k}`]: metrics.normalizedDiscountedCumulativeGainAtK,
+        [`catalog_coverage_at_${metrics.k}`]: metrics.catalogCoverageAtK,
+        evaluated_users: metrics.evaluatedUsers,
+        skipped_users: metrics.skippedUsers,
+        latency_ms: Date.now() - startedAt,
       },
-      attributes: {
-        'sceneflow.component': 'deterministic-fallback-ranker',
+      params: {
+        k: metrics.k,
+        evaluation_method: 'temporal-leave-one-out',
+        user_count: snapshot.users.length,
+        movie_count: snapshot.movies.length,
+        interaction_count: snapshot.interactions.length,
+      },
+      tags: {
+        'sceneflow.component': 'recommendation-ranker',
         'sceneflow.evaluation.version': '1',
       },
     });
-    span.end({
-      outputs: { ...metrics, latencyMs: Date.now() - startedAt },
-      status: mlflow.SpanStatusCode.OK,
-    });
 
-    return Promise.resolve(metrics);
+    return metrics;
   }
 }
 
 class LocalModelMonitoring implements ModelMonitoring {
   readonly enabled = false;
-
-  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
-    return operation();
-  }
 
   observeCuration(
     _context: CurationContext,
@@ -173,23 +211,19 @@ class LocalModelMonitoring implements ModelMonitoring {
   }
 }
 
-export function createModelMonitoring(env: NodeJS.ProcessEnv = process.env): ModelMonitoring {
+export function createModelMonitoring(
+  env: NodeJS.ProcessEnv = process.env,
+  createExperimentsClient: ExperimentsClientFactory = (host) => new WorkspaceClient({ host }).experiments
+): ModelMonitoring {
   const experimentId = env.MLFLOW_EXPERIMENT_ID?.trim();
   if (!experimentId) return new LocalModelMonitoring();
 
   try {
-    const trackingUri = env.MLFLOW_TRACKING_URI?.trim() || 'databricks';
     const databricksHost = normalizeDatabricksHost(env.DATABRICKS_HOST);
-    const usesDatabricksTracking = trackingUri === 'databricks' || trackingUri.startsWith('databricks://');
-
-    mlflow.init({
-      trackingUri,
-      experimentId,
-      ...(usesDatabricksTracking && databricksHost ? { host: databricksHost } : {}),
-    });
-    return new MlflowModelMonitoring();
+    const experiments = createExperimentsClient(databricksHost);
+    return new MlflowModelMonitoring(new MlflowRunLogger(experimentId, experiments));
   } catch (error) {
-    console.error('MLflow monitoring initialization failed; continuing without trace export.', error);
+    console.error('MLflow monitoring initialization failed; continuing without metric logging.', error);
     return new LocalModelMonitoring();
   }
 }
