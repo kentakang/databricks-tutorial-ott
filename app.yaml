@@ -8,8 +8,6 @@ env:
     valueFrom: vector-search-index
   - name: MLFLOW_EXPERIMENT_ID
     valueFrom: mlflow-experiment
-  - name: MLFLOW_TRACKING_URI
-    value: databricks
   - name: DATABRICKS_CATALOG
     value: media_dev
   - name: DATABRICKS_SCHEMA
