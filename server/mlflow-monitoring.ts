@@ -2,7 +2,6 @@ import * as mlflow from 'mlflow-tracing';
 import type { CatalogSnapshot } from '../shared/domain.js';
 import type { CurationContext, ThemeCurationResult } from './ai-curation.js';
 import { evaluateRecommendationQuality, type RecommendationEvaluationMetrics } from './recommendation-evaluation.js';
-import type { RagRecommendationResult } from './rag-recommendation.js';
 
 const EVALUATION_CUTOFF = 10;
 
@@ -23,7 +22,6 @@ interface CurationMetrics {
 
 export interface ModelMonitoring {
   readonly enabled: boolean;
-  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult>;
   observeCuration(
     context: CurationContext,
     operation: () => Promise<ThemeCurationResult>
@@ -45,46 +43,6 @@ function curationMetrics(result: ThemeCurationResult, latencyMs: number): Curati
 
 class MlflowModelMonitoring implements ModelMonitoring {
   readonly enabled = true;
-
-  async observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
-    const startedAt = Date.now();
-    const span = mlflow.startSpan({
-      name: 'sceneflow.rag_recommendation',
-      spanType: mlflow.SpanType.CHAIN,
-      inputs: { retrievalStrategy: 'ai-search-hybrid' },
-      attributes: {
-        'sceneflow.component': 'rag-recommendation',
-        'sceneflow.evaluation.version': '1',
-      },
-    });
-
-    try {
-      const result = await operation();
-      span.end({
-        outputs: {
-          retrievalSource: result.retrieval.source,
-          retrievedCandidateCount: result.retrieval.movies.length,
-          curationSource: result.curation.source,
-          latencyMs: Date.now() - startedAt,
-        },
-        attributes: {
-          'sceneflow.rag.retrieval_source': result.retrieval.source,
-          'sceneflow.rag.degraded':
-            result.retrieval.source !== 'ai-search' || result.curation.source !== 'foundation-model',
-        },
-        status: mlflow.SpanStatusCode.OK,
-      });
-      return result;
-    } catch (error) {
-      const normalizedError = error instanceof Error ? error : new Error(String(error));
-      span.recordException(normalizedError);
-      span.end({
-        outputs: { latencyMs: Date.now() - startedAt },
-        status: mlflow.SpanStatusCode.ERROR,
-      });
-      throw error;
-    }
-  }
 
   async observeCuration(
     context: CurationContext,
@@ -132,7 +90,7 @@ class MlflowModelMonitoring implements ModelMonitoring {
     const startedAt = Date.now();
     const metrics = evaluateRecommendationQuality(snapshot, EVALUATION_CUTOFF);
     const span = mlflow.startSpan({
-      name: 'sceneflow.deterministic_fallback_offline_evaluation',
+      name: 'sceneflow.recommendation_offline_evaluation',
       spanType: mlflow.SpanType.RERANKER,
       inputs: {
         userCount: snapshot.users.length,
@@ -141,7 +99,7 @@ class MlflowModelMonitoring implements ModelMonitoring {
         evaluationMethod: 'temporal-leave-one-out',
       },
       attributes: {
-        'sceneflow.component': 'deterministic-fallback-ranker',
+        'sceneflow.component': 'recommendation-ranker',
         'sceneflow.evaluation.version': '1',
       },
     });
@@ -156,10 +114,6 @@ class MlflowModelMonitoring implements ModelMonitoring {
 
 class LocalModelMonitoring implements ModelMonitoring {
   readonly enabled = false;
-
-  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
-    return operation();
-  }
 
   observeCuration(
     _context: CurationContext,

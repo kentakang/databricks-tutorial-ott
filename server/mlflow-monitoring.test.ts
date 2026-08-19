@@ -25,16 +25,8 @@ describe('createModelMonitoring', () => {
     const monitoring = createModelMonitoring({});
     const result: ThemeCurationResult = { source: 'deterministic-fallback', themes: [] };
     const operation = vi.fn().mockResolvedValue(result);
-    const ragOperation = vi.fn().mockResolvedValue({
-      curation: result,
-      retrieval: { source: 'deterministic-fallback', movies: [] },
-    });
 
     await expect(monitoring.observeCuration(emptyContext, operation)).resolves.toBe(result);
-    await expect(monitoring.observeRagRecommendation(ragOperation)).resolves.toEqual({
-      curation: result,
-      retrieval: { source: 'deterministic-fallback', movies: [] },
-    });
     await expect(monitoring.evaluateRecommendations(emptySnapshot)).resolves.toMatchObject({
       k: 10,
       evaluatedUsers: 0,
@@ -42,7 +34,6 @@ describe('createModelMonitoring', () => {
     });
     expect(monitoring.enabled).toBe(false);
     expect(operation).toHaveBeenCalledOnce();
-    expect(ragOperation).toHaveBeenCalledOnce();
   });
 });
 
