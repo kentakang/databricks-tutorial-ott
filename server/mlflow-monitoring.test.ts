@@ -25,8 +25,16 @@ describe('createModelMonitoring', () => {
     const monitoring = createModelMonitoring({});
     const result: ThemeCurationResult = { source: 'deterministic-fallback', themes: [] };
     const operation = vi.fn().mockResolvedValue(result);
+    const ragOperation = vi.fn().mockResolvedValue({
+      curation: result,
+      retrieval: { source: 'deterministic-fallback', movies: [] },
+    });
 
     await expect(monitoring.observeCuration(emptyContext, operation)).resolves.toBe(result);
+    await expect(monitoring.observeRagRecommendation(ragOperation)).resolves.toEqual({
+      curation: result,
+      retrieval: { source: 'deterministic-fallback', movies: [] },
+    });
     await expect(monitoring.evaluateRecommendations(emptySnapshot)).resolves.toMatchObject({
       k: 10,
       evaluatedUsers: 0,
@@ -34,6 +42,7 @@ describe('createModelMonitoring', () => {
     });
     expect(monitoring.enabled).toBe(false);
     expect(operation).toHaveBeenCalledOnce();
+    expect(ragOperation).toHaveBeenCalledOnce();
   });
 
   it('logs recommendation evaluation metrics as a completed MLflow run', async () => {
@@ -59,7 +68,7 @@ describe('createModelMonitoring', () => {
     expect(createRun).toHaveBeenCalledWith(
       expect.objectContaining({
         experiment_id: 'experiment-1',
-        run_name: 'sceneflow.recommendation_offline_evaluation',
+        run_name: 'sceneflow.deterministic_fallback_offline_evaluation',
       })
     );
     const loggedBatch = loggedBatches[0] as {

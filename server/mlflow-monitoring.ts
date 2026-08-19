@@ -2,6 +2,7 @@ import { WorkspaceClient } from '@databricks/sdk-experimental';
 import type { CatalogSnapshot } from '../shared/domain.js';
 import type { CurationContext, ThemeCurationResult } from './ai-curation.js';
 import { evaluateRecommendationQuality, type RecommendationEvaluationMetrics } from './recommendation-evaluation.js';
+import type { RagRecommendationResult } from './rag-recommendation.js';
 
 const EVALUATION_CUTOFF = 10;
 
@@ -85,6 +86,7 @@ class MlflowRunLogger {
 
 export interface ModelMonitoring {
   readonly enabled: boolean;
+  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult>;
   observeCuration(
     context: CurationContext,
     operation: () => Promise<ThemeCurationResult>
@@ -114,6 +116,44 @@ class MlflowModelMonitoring implements ModelMonitoring {
       await this.logger.log(record);
     } catch (error) {
       console.error('Failed to log MLflow monitoring metrics; application behavior is unchanged.', error);
+    }
+  }
+
+  async observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
+    const startedAt = Date.now();
+
+    try {
+      const result = await operation();
+      await this.log({
+        name: 'sceneflow.rag_recommendation',
+        startTime: startedAt,
+        metrics: {
+          retrieved_candidate_count: result.retrieval.movies.length,
+          latency_ms: Date.now() - startedAt,
+          degraded: result.retrieval.source === 'ai-search' && result.curation.source === 'foundation-model' ? 0 : 1,
+        },
+        params: { retrieval_strategy: 'ai-search-hybrid' },
+        tags: {
+          'sceneflow.component': 'rag-recommendation',
+          'sceneflow.evaluation.version': '1',
+          'sceneflow.rag.retrieval_source': result.retrieval.source,
+          'sceneflow.rag.curation_source': result.curation.source,
+        },
+      });
+      return result;
+    } catch (error) {
+      await this.log({
+        name: 'sceneflow.rag_recommendation',
+        startTime: startedAt,
+        metrics: { latency_ms: Date.now() - startedAt },
+        tags: {
+          'sceneflow.component': 'rag-recommendation',
+          'sceneflow.evaluation.version': '1',
+          'sceneflow.error.type': error instanceof Error ? error.name : 'UnknownError',
+        },
+        status: 'FAILED',
+      });
+      throw error;
     }
   }
 
@@ -168,7 +208,7 @@ class MlflowModelMonitoring implements ModelMonitoring {
     const startedAt = Date.now();
     const metrics = evaluateRecommendationQuality(snapshot, EVALUATION_CUTOFF);
     await this.log({
-      name: 'sceneflow.recommendation_offline_evaluation',
+      name: 'sceneflow.deterministic_fallback_offline_evaluation',
       startTime: startedAt,
       metrics: {
         [`recall_at_${metrics.k}`]: metrics.recallAtK,
@@ -187,7 +227,7 @@ class MlflowModelMonitoring implements ModelMonitoring {
         interaction_count: snapshot.interactions.length,
       },
       tags: {
-        'sceneflow.component': 'recommendation-ranker',
+        'sceneflow.component': 'deterministic-fallback-ranker',
         'sceneflow.evaluation.version': '1',
       },
     });
@@ -198,6 +238,10 @@ class MlflowModelMonitoring implements ModelMonitoring {
 
 class LocalModelMonitoring implements ModelMonitoring {
   readonly enabled = false;
+
+  observeRagRecommendation(operation: () => Promise<RagRecommendationResult>): Promise<RagRecommendationResult> {
+    return operation();
+  }
 
   observeCuration(
     _context: CurationContext,
