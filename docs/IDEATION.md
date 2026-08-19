@@ -39,7 +39,7 @@ SceneFlow is a consumer-style OTT home screen that uses governed Databricks data
 2. Core action: Choose another persona from the header selector and browse personalized rows.
 3. Databricks data or AI interaction: The server queries Unity Catalog tables through a bound SQL Warehouse and ranks unseen movies using explicit preferences, viewing behavior, content similarity, and review quality.
 4. Decision or artifact produced: The viewer selects a movie after seeing a concise, evidence-backed recommendation reason.
-5. Follow-up action: Open the movie detail panel, inspect audience and critic signals, or switch personas to compare the experience.
+5. Follow-up action: Open the movie detail panel, read every critic commentary and written user review, or switch personas to compare the experience.
 
 ## Data, AI, and Databricks resources
 
@@ -55,7 +55,7 @@ Consider data freshness, volume, latency, lineage, row/column-level controls, mo
 ## Experience hypotheses
 
 - Primary interface: Responsive consumer OTT home page with a cinematic hero, horizontal movie rails, and a detail modal.
-- Most important view or interaction: Changing the demo user updates the hero and personalized rails while preserving a consumer-facing presentation.
+- Most important view or interaction: Changing the demo user updates the hero and personalized rails, while each movie detail separates the complete critic and viewer review collections into readable tabs.
 - Empty, loading, error, and permission-denied states: Skeleton cards, retryable error panel, no-recommendations fallback to trending titles, and an explicit access-denied message.
 - Accessibility and localization needs: Korean-first copy, semantic buttons and dialogs, keyboard navigation, visible focus, reduced-motion support, and WCAG AA color contrast.
 - Expected devices and viewport sizes: Sales laptop at 1440px primary; verify 1024px tablet and 390px mobile layouts.

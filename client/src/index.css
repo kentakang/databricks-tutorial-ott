@@ -998,39 +998,265 @@ select:focus-visible {
   color: rgba(255, 255, 255, 0.72);
 }
 
-.critic-quote {
-  margin: 1.4rem 0;
-  padding: 1rem 1.1rem;
-  border: 0;
-  border-left: 2px solid #a58cff;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.critic-quote div {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: #d0c3ff;
-  font-size: 0.65rem;
-  font-weight: 800;
-}
-
-.critic-quote p {
-  margin: 0.6rem 0;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.76rem;
-  line-height: 1.6;
-}
-
-.critic-quote cite {
-  color: rgba(255, 255, 255, 0.42);
-  font-size: 0.62rem;
-  font-style: normal;
-}
-
 .modal-play {
   width: 100%;
   margin-top: 0.5rem;
+}
+
+.review-panel {
+  margin-top: 2.2rem;
+  padding-top: 1.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.review-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.review-heading .eyebrow {
+  display: block;
+  margin-bottom: 0.32rem;
+}
+
+.review-heading h3 {
+  margin: 0;
+  color: #f7f5fb;
+  font-size: 1.25rem;
+  letter-spacing: -0.035em;
+}
+
+.review-heading > span {
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 0.6rem;
+}
+
+.review-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.review-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.48);
+  background: transparent;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.review-tab b {
+  min-width: 20px;
+  padding: 0.12rem 0.35rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.58rem;
+}
+
+.review-tab:hover,
+.review-tab.active {
+  color: #fff;
+  background: rgba(165, 140, 255, 0.16);
+}
+
+.review-tab.active b {
+  color: #d8ceff;
+  background: rgba(165, 140, 255, 0.16);
+}
+
+.review-tab:focus-visible {
+  outline: 2px solid #bba7ff;
+  outline-offset: 2px;
+}
+
+.review-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.review-card {
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.review-card header,
+.review-card footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.review-card h4 {
+  margin: 0.38rem 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.review-card > p {
+  margin: 0.75rem 0;
+  color: rgba(255, 255, 255, 0.67);
+  font-size: 0.7rem;
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.review-card footer {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.59rem;
+}
+
+.review-card time {
+  white-space: nowrap;
+}
+
+.critic-review-card {
+  border-left: 2px solid rgba(165, 140, 255, 0.72);
+}
+
+.critic-score {
+  display: flex;
+  align-items: center;
+  gap: 0.27rem;
+  color: #d4c8ff;
+  font-size: 0.62rem;
+}
+
+.critic-score strong {
+  color: #ede8ff;
+  font-size: 0.85rem;
+}
+
+.critic-score span {
+  color: rgba(212, 200, 255, 0.56);
+}
+
+.top-critic-badge {
+  flex: 0 0 auto;
+  padding: 0.27rem 0.42rem;
+  border: 1px solid rgba(165, 140, 255, 0.3);
+  border-radius: 4px;
+  color: #cfc0ff;
+  background: rgba(165, 140, 255, 0.08);
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.reviewer {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.reviewer-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 50%;
+  color: #d8ceff;
+  background: linear-gradient(145deg, rgba(165, 140, 255, 0.27), rgba(92, 68, 163, 0.12));
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.reviewer strong,
+.reviewer time {
+  display: block;
+}
+
+.reviewer strong {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.68rem;
+}
+
+.reviewer time {
+  margin-top: 0.18rem;
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 0.56rem;
+}
+
+.user-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.27rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 999px;
+  color: #ffd987;
+  background: rgba(255, 193, 73, 0.08);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.review-status,
+.review-empty {
+  min-height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  border: 1px dashed rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+.review-loader {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #bba7ff;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.review-error {
+  flex-direction: column;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.review-error p,
+.review-empty p {
+  margin: 0;
+}
+
+.review-error button {
+  padding: 0.42rem 0.75rem;
+  border: 1px solid rgba(187, 167, 255, 0.24);
+  border-radius: 999px;
+  color: #d8ceff;
+  background: rgba(165, 140, 255, 0.1);
+  font: inherit;
+  font-size: 0.6rem;
+  cursor: pointer;
 }
 
 .toast {
@@ -1150,6 +1376,12 @@ select:focus-visible {
   50% {
     transform: scale(1.06);
     opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -1374,6 +1606,15 @@ select:focus-visible {
   .modal-content {
     overflow: visible;
     padding: 2rem 1.25rem 2.5rem;
+  }
+
+  .review-heading > span {
+    display: none;
+  }
+
+  .review-card footer {
+    flex-direction: column;
+    gap: 0.3rem;
   }
 
   .evidence-grid {

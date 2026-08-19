@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Info, Play, Search, Sparkles, Star, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type { HomeFeed, MovieCard } from '../../shared/domain.js';
+import type { HomeFeed, MovieCard, MovieReviews } from '../../shared/domain.js';
 
 interface UserSummary {
   userId: string;
@@ -64,6 +64,14 @@ function scoreLabel(movie: MovieCard): string {
     return `시청자 ${movie.averageUserRating.toFixed(1)}`;
   }
   return 'SceneFlow 추천';
+}
+
+function formatReviewDate(value: string): string {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(value));
 }
 
 export default function App() {
@@ -259,7 +267,14 @@ export default function App() {
         </main>
       )}
 
-      {selectedMovie && <MovieModal movie={selectedMovie} onClose={() => setSelectedMovie(null)} onPlay={play} />}
+      {selectedMovie && (
+        <MovieModal
+          key={selectedMovie.movieId}
+          movie={selectedMovie}
+          onClose={() => setSelectedMovie(null)}
+          onPlay={play}
+        />
+      )}
       {toast && (
         <div className="toast" role="status">
           {toast}
@@ -499,6 +514,32 @@ function MovieModal({
   onClose: () => void;
   onPlay: (movie: MovieCard) => void;
 }) {
+  const [reviews, setReviews] = useState<MovieReviews | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [activeReviewTab, setActiveReviewTab] = useState<'critic' | 'user'>('critic');
+  const [reviewRetryKey, setReviewRetryKey] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchJson<MovieReviews>(`/api/movies/${encodeURIComponent(movie.movieId)}/reviews`, controller.signal)
+      .then(setReviews)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        setReviewsError(reason instanceof Error ? reason.message : '작품 리뷰를 불러오지 못했습니다.');
+      })
+      .finally(() => setReviewsLoading(false));
+
+    return () => controller.abort();
+  }, [movie.movieId, reviewRetryKey]);
+
+  const retryReviews = () => {
+    setReviews(null);
+    setReviewsError(null);
+    setReviewsLoading(true);
+    setReviewRetryKey((value) => value + 1);
+  };
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -555,22 +596,123 @@ function MovieModal({
               <dd>{movie.keywords}</dd>
             </div>
           </dl>
-          {movie.criticHighlight && (
-            <blockquote className="critic-quote">
-              <div>
-                <Star size={16} fill="currentColor" /> {movie.criticHighlight.score100} / 100
-              </div>
-              <p>“{movie.criticHighlight.reviewText}”</p>
-              <cite>
-                {movie.criticHighlight.penName} · {movie.criticHighlight.publicationName}
-              </cite>
-            </blockquote>
-          )}
           <button className="primary-button modal-play" type="button" onClick={() => onPlay(movie)}>
             <Play size={19} fill="currentColor" /> 지금 재생
           </button>
+
+          <section className="review-panel" aria-labelledby="review-panel-title">
+            <div className="review-heading">
+              <div>
+                <span className="eyebrow">작품을 더 깊이</span>
+                <h3 id="review-panel-title">리뷰 &amp; 평론</h3>
+              </div>
+              <span>전체 의견 보기</span>
+            </div>
+
+            <div className="review-tabs" role="tablist" aria-label="리뷰 종류">
+              <button
+                className={activeReviewTab === 'critic' ? 'review-tab active' : 'review-tab'}
+                type="button"
+                role="tab"
+                aria-selected={activeReviewTab === 'critic'}
+                onClick={() => setActiveReviewTab('critic')}
+              >
+                평론가 평론 <b>{reviews ? reviews.criticReviews.length : '·'}</b>
+              </button>
+              <button
+                className={activeReviewTab === 'user' ? 'review-tab active' : 'review-tab'}
+                type="button"
+                role="tab"
+                aria-selected={activeReviewTab === 'user'}
+                onClick={() => setActiveReviewTab('user')}
+              >
+                사용자 리뷰 <b>{reviews ? reviews.userReviews.length : '·'}</b>
+              </button>
+            </div>
+
+            {reviewsLoading ? (
+              <div className="review-status" role="status">
+                <span className="review-loader" />
+                작품에 대한 의견을 모으고 있어요.
+              </div>
+            ) : reviewsError ? (
+              <div className="review-status review-error" role="alert">
+                <p>{reviewsError}</p>
+                <button type="button" onClick={retryReviews}>
+                  다시 시도
+                </button>
+              </div>
+            ) : reviews && activeReviewTab === 'critic' ? (
+              <div className="review-list" role="tabpanel">
+                {reviews.criticReviews.length > 0 ? (
+                  reviews.criticReviews.map((review) => (
+                    <article className="review-card critic-review-card" key={review.criticReviewId}>
+                      <header>
+                        <div>
+                          <div className="critic-score">
+                            <Star size={14} fill="currentColor" aria-hidden="true" />
+                            <strong>{review.score100}</strong>
+                            <span>/ 100 · {review.letterGrade}</span>
+                          </div>
+                          <h4>{review.reviewTitle}</h4>
+                        </div>
+                        {review.isTopCritic && <span className="top-critic-badge">TOP CRITIC</span>}
+                      </header>
+                      <p>“{review.reviewText}”</p>
+                      <footer>
+                        <span>
+                          {review.penName} · {review.publicationName}
+                        </span>
+                        <time dateTime={review.reviewedAt}>{formatReviewDate(review.reviewedAt)}</time>
+                      </footer>
+                    </article>
+                  ))
+                ) : (
+                  <ReviewEmptyState label="등록된 평론가 평론이 없습니다." />
+                )}
+              </div>
+            ) : reviews ? (
+              <div className="review-list" role="tabpanel">
+                {reviews.userReviews.length > 0 ? (
+                  reviews.userReviews.map((review) => (
+                    <article className="review-card user-review-card" key={review.reviewId}>
+                      <header>
+                        <div className="reviewer">
+                          <span className="reviewer-avatar" aria-hidden="true">
+                            {review.displayName.slice(0, 1)}
+                          </span>
+                          <div>
+                            <strong>{review.displayName}</strong>
+                            <time dateTime={review.reviewedAt}>{formatReviewDate(review.reviewedAt)}</time>
+                          </div>
+                        </div>
+                        {review.rating !== null && (
+                          <span className="user-rating">
+                            <Star size={13} fill="currentColor" aria-hidden="true" /> {review.rating.toFixed(1)}
+                          </span>
+                        )}
+                      </header>
+                      {review.reviewTitle && <h4>{review.reviewTitle}</h4>}
+                      {review.reviewText && <p>{review.reviewText}</p>}
+                    </article>
+                  ))
+                ) : (
+                  <ReviewEmptyState label="등록된 사용자 리뷰가 없습니다." />
+                )}
+              </div>
+            ) : null}
+          </section>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ReviewEmptyState({ label }: { label: string }) {
+  return (
+    <div className="review-empty">
+      <Star size={18} aria-hidden="true" />
+      <p>{label}</p>
     </div>
   );
 }

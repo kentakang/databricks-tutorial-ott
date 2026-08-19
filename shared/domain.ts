@@ -83,6 +83,21 @@ export interface CriticCommentary {
   isTopCritic: boolean;
 }
 
+export interface UserReview {
+  reviewId: string;
+  displayName: string;
+  rating: number | null;
+  reviewTitle: string | null;
+  reviewText: string | null;
+  reviewedAt: string;
+}
+
+export interface MovieReviews {
+  movieId: string;
+  criticReviews: CriticCommentary[];
+  userReviews: UserReview[];
+}
+
 export interface CatalogSnapshot {
   users: UserProfile[];
   movies: Movie[];
