@@ -70,6 +70,10 @@ export interface ThemeModelRequest {
 }
 
 export type ThemeModelInvoker = (request: ThemeModelRequest) => Promise<unknown>;
+export type CurationObserver = (
+  context: CurationContext,
+  operation: () => Promise<ThemeCurationResult>
+) => Promise<ThemeCurationResult>;
 
 const modelThemeSchema = z.object({
   title: z.string().trim().min(2).max(40),
@@ -248,7 +252,8 @@ export class AiCurationService {
 
   constructor(
     private readonly invokeModel: ThemeModelInvoker,
-    private readonly now: () => number = Date.now
+    private readonly now: () => number = Date.now,
+    private readonly observe: CurationObserver = (_context, operation) => operation()
   ) {}
 
   getCached(userId: string): ThemeCurationResult | null {
@@ -268,7 +273,7 @@ export class AiCurationService {
     const active = this.pending.get(context.userId);
     if (active) return active;
 
-    const request = this.generate(context);
+    const request = this.observe(context, () => this.generate(context));
     this.pending.set(context.userId, request);
     try {
       const result = await request;

@@ -17,6 +17,7 @@ flowchart LR
     E -->|검증된 홈 피드 JSON| G[React OTT 화면]
     E -.모델 실패 시.-> H[결정론적 폴백 주제]
     H --> G
+    E -->|집계 품질 지표와 Trace| I[MLflow Experiment]
 ```
 
 핵심 원칙은 **데이터 접근, 추천 안전성, 표현 생성의 책임을 분리**하는 것이다. Unity Catalog와 SQL Warehouse가 데이터 접근을 담당하고, TypeScript 랭커가 시청 이력 제외와 후보 선정을 보장하며, Foundation Model은 이미 검증된 후보를 주제로 묶는 역할만 맡는다.
@@ -87,11 +88,36 @@ flowchart LR
 | ------------------------- | ----------- | ------------------- |
 | SQL Warehouse             | `CAN_USE`   | 읽기 전용 SQL 실행  |
 | Foundation Model Endpoint | `CAN_QUERY` | AI 주제 생성        |
+| MLflow Experiment         | `CAN_EDIT`  | 평가·Trace 기록     |
 | 앱 노출 테이블·View 5개   | `SELECT`    | 홈 피드와 리뷰 구성 |
 
 소스 CSV가 있는 Volume에는 앱 런타임 쓰기 권한을 부여하지 않는다. Workspace host, 토큰, Warehouse ID, Endpoint 이름, 카탈로그 경로도 애플리케이션 코드에 하드코딩하지 않는다. 로컬에서는 `.env`와 Databricks CLI 프로필을 사용하고, 배포 환경에서는 App 자원 바인딩과 통합 인증을 사용한다.
 
-## 6. 요청 한 건을 따라가 보기
+## 6. MLflow: 추천 품질 평가와 AI 모니터링
+
+[`server/recommendation-evaluation.ts`](../server/recommendation-evaluation.ts)는 현재 TypeScript 랭커를 그대로 호출해 시간순 leave-one-out 평가를 수행한다. 각 합성 사용자의 가장 최근 긍정 반응 작품 하나를 숨기고, 이전 선호 이력만으로 만든 상위 10개 추천에 숨긴 작품이 나타나는지 측정한다.
+
+| 지표                  | 의미                                                                |
+| --------------------- | ------------------------------------------------------------------- |
+| `Recall@10`           | 숨긴 긍정 작품이 상위 10개에 포함된 사용자 비율                     |
+| `MRR@10`              | 숨긴 작품이 상위에 있을수록 높아지는 역순위 평균                    |
+| `NDCG@10`             | 순위가 뒤로 갈수록 할인해 계산한 랭킹 품질                          |
+| `Catalog Coverage@10` | 평가 사용자들의 상위 10개 추천이 전체 카탈로그를 얼마나 덮는지 측정 |
+
+[`server/mlflow-monitoring.ts`](../server/mlflow-monitoring.ts)는 다음 두 종류의 MLflow Trace를 전용 Experiment에 기록한다.
+
+- `sceneflow.recommendation_offline_evaluation`: 위 네 지표, 평가·제외 사용자 수, 데이터 규모, 평가 시간
+- `sceneflow.ai_curation`: Foundation Model/폴백 출처, 지연 시간, 주제·영화 수, 영화 ID 고유 비율, 폴백 여부
+
+오프라인 평가는 카탈로그 스냅샷을 읽은 요청이 있을 때 최대 30분에 한 번 백그라운드에서 실행된다. AI Trace는 캐시되지 않은 실제 큐레이션 시도마다 생성된다. 사용자 ID, 원문 프롬프트, 리뷰, 모델 원문 응답, 전체 추천 목록은 MLflow에 보내지 않는다.
+
+[`databricks.yml`](../databricks.yml)은 `/Shared/media-ott-recommendations-monitoring` Experiment를 만들고 앱에 `CAN_EDIT`만 부여한다. [`app.yaml`](../app.yaml)은 바인딩된 ID를 `MLFLOW_EXPERIMENT_ID`로 주입한다. 로컬에서 이 변수가 없으면 평가 함수는 실행할 수 있지만 Trace 전송은 no-op이다.
+
+이 평가는 합성 과거 데이터의 방향성 지표이지 실제 클릭·재생 전환의 인과 효과가 아니다. 특히 집계 품질 신호에는 숨긴 사용자의 기여가 남아 있으므로, 프로덕션 전에는 시간 기준 데이터 스냅샷과 온라인 실험을 추가해야 한다.
+
+2026-08-19에 현재 Unity Catalog 스냅샷으로 실행한 첫 기준선은 다음과 같다. 300명 중 이전 긍정 이력이 있는 298명을 평가했으며, `Recall@10=0.0403`, `MRR@10=0.0141`, `NDCG@10=0.0201`, `Catalog Coverage@10=0.8550`이었다. 합성 상호작용에서는 순위 예측력이 낮고 추천 범위는 넓다는 뜻이다. 이 값은 개선 전 비교 기준이지 프로덕션 합격선이 아니다.
+
+## 7. 요청 한 건을 따라가 보기
 
 `GET /api/home/USR0001` 요청의 실행 순서는 다음과 같다.
 
@@ -102,7 +128,9 @@ flowchart LR
 5. 모델 응답은 허용된 후보 ID만 남도록 검증되고 30분간 캐시된다.
 6. 클라이언트가 큐레이션 API를 조회해 AI 주제로 홈 화면을 갱신한다.
 
-## 7. 개발과 검증
+7. 현재 스냅샷의 추천 품질 평가가 30분 이내에 실행되지 않았다면 MLflow 평가 Trace를 백그라운드에서 기록한다.
+
+## 8. 개발과 검증
 
 환경 준비 상태는 다음 명령으로 확인한다.
 
@@ -137,6 +165,6 @@ databricks bundle validate -t dev -p <profile> --var "sql_warehouse_id=<warehous
 - 합성 사용자 300명과 영화 200편을 위한 데모이므로 전체 카탈로그를 앱 메모리에 올린다. 실제 규모에서는 후보·피처 사전 계산이나 Serving Endpoint가 필요하다.
 - 랭커는 학습 모델이 아니며 온라인 A/B 테스트나 실제 클릭·재생 전환을 수집하지 않는다.
 - 사용자 선택기는 영업 데모용이며 프로덕션 인증·사용자 식별 설계가 아니다.
-- AI 주제의 형식과 후보 안전성은 코드로 검사하지만, 표현 품질은 별도 평가·모니터링 체계가 필요하다.
+- AI 주제의 형식과 후보 안전성은 코드 지표로 모니터링하지만, 표현의 자연스러움은 아직 사람 또는 LLM Judge 평가가 없다.
 
-제품 가정과 성공 지표는 [`docs/IDEATION.md`](IDEATION.md), 아키텍처 결정은 [`docs/adr/0001-consumer-ott-app-architecture.md`](adr/0001-consumer-ott-app-architecture.md)와 [`docs/adr/0002-ai-personalized-theme-curation.md`](adr/0002-ai-personalized-theme-curation.md)에서 확인할 수 있다.
+제품 가정과 성공 지표는 [`docs/IDEATION.md`](IDEATION.md), 아키텍처 결정은 [`docs/adr/0001-consumer-ott-app-architecture.md`](adr/0001-consumer-ott-app-architecture.md), [`docs/adr/0002-ai-personalized-theme-curation.md`](adr/0002-ai-personalized-theme-curation.md), [`docs/adr/0003-mlflow-recommendation-monitoring.md`](adr/0003-mlflow-recommendation-monitoring.md)에서 확인할 수 있다.

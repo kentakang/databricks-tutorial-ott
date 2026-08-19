@@ -1,32 +1,71 @@
 import { analytics, createApp, getExecutionContext, server } from '@databricks/appkit';
 import { AiCurationService, createFallbackCuration } from './ai-curation.js';
 import { CatalogRepository } from './catalog-repository.js';
+import { createModelMonitoring } from './mlflow-monitoring.js';
 import { buildMovieReviews } from './movie-reviews.js';
 import { buildCurationContext, buildHomeFeed } from './recommendation-engine.js';
 
 const userIdPattern = /^[a-zA-Z0-9_-]{1,64}$/;
 const movieIdPattern = /^[a-zA-Z0-9_-]{1,64}$/;
+const evaluationIntervalMs = 30 * 60 * 1000;
 
 await createApp({
   plugins: [analytics(), server()],
   onPluginsReady(appkit) {
     const repository = new CatalogRepository((statement) => appkit.analytics.query(statement));
-    const aiCuration = new AiCurationService(async (request) => {
-      const endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
-      if (!endpointName) throw new Error('AI curation endpoint is not configured.');
+    const monitoring = createModelMonitoring();
+    let nextEvaluationAt = 0;
+    let evaluationRunning = false;
 
-      return getExecutionContext().client.servingEndpoints.query({
-        name: endpointName,
-        messages: request.messages,
-        max_tokens: request.maxTokens,
-        temperature: request.temperature,
+    const scheduleEvaluation = (snapshot: Awaited<ReturnType<typeof repository.getSnapshot>>) => {
+      if (evaluationRunning || Date.now() < nextEvaluationAt) return;
+
+      evaluationRunning = true;
+      nextEvaluationAt = Date.now() + evaluationIntervalMs;
+      setImmediate(() => {
+        void monitoring
+          .evaluateRecommendations(snapshot)
+          .then((metrics) => {
+            console.info('Recommendation quality evaluation completed.', {
+              mlflowEnabled: monitoring.enabled,
+              ...metrics,
+            });
+          })
+          .catch((error: unknown) => {
+            console.error('Recommendation quality evaluation failed.', error);
+          })
+          .finally(() => {
+            evaluationRunning = false;
+          });
       });
-    });
+    };
+
+    const getSnapshot = async () => {
+      const snapshot = await repository.getSnapshot();
+      scheduleEvaluation(snapshot);
+      return snapshot;
+    };
+
+    const aiCuration = new AiCurationService(
+      async (request) => {
+        const endpointName = process.env.DATABRICKS_SERVING_ENDPOINT_NAME;
+        if (!endpointName) throw new Error('AI curation endpoint is not configured.');
+
+        return getExecutionContext().client.servingEndpoints.query({
+          name: endpointName,
+          messages: request.messages,
+          max_tokens: request.maxTokens,
+          temperature: request.temperature,
+        });
+      },
+      Date.now,
+      (context, operation) => monitoring.observeCuration(context, operation)
+    );
 
     appkit.server.extend((app) => {
       app.get('/api/users', async (_request, response) => {
         try {
-          const snapshot = await repository.getSnapshot();
+          const snapshot = await getSnapshot();
           response.setHeader('Cache-Control', 'private, max-age=60');
           response.json(
             snapshot.users.map((profile) => ({
@@ -52,7 +91,7 @@ await createApp({
         }
 
         try {
-          const snapshot = await repository.getSnapshot();
+          const snapshot = await getSnapshot();
           if (!snapshot.users.some((profile) => profile.userId === userId)) {
             response.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
             return;
@@ -83,7 +122,7 @@ await createApp({
         }
 
         try {
-          const snapshot = await repository.getSnapshot();
+          const snapshot = await getSnapshot();
           if (!snapshot.users.some((profile) => profile.userId === userId)) {
             response.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
             return;
@@ -108,7 +147,7 @@ await createApp({
         }
 
         try {
-          const snapshot = await repository.getSnapshot();
+          const snapshot = await getSnapshot();
           if (!snapshot.movies.some((movie) => movie.movieId === movieId)) {
             response.status(404).json({ error: '작품을 찾을 수 없습니다.' });
             return;

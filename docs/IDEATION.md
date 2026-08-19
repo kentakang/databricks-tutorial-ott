@@ -48,6 +48,7 @@ SceneFlow is a consumer-style OTT home screen where Databricks AI turns governed
 | Movie and user data | `media_dev.ott_recommendations` Unity Catalog tables | Read | Internal; user profile fields | Keep app permissions read-only |
 | Application queries | Existing `Serverless Starter Warehouse` (migration exception) | Read | Internal | Future compliant name: `media-recommendations-warehouse` |
 | AI theme curation | Existing `databricks-qwen3-next-80b-a3b-instruct` Foundation Model endpoint | Query | Synthetic taste and candidate metadata | App receives `CAN_QUERY` only |
+| Recommendation and AI monitoring | `media-ott-recommendations-monitoring` MLflow experiment | Write traces | Aggregate metrics only | App receives `CAN_EDIT`; no raw prompts or user IDs |
 | Consumer application | `media-ott-consumer-app` Databricks App | Read | Internal demo | Workspace-authenticated users only |
 | Source file staging | `media_dev.ott_recommendations.source_datasets` Volume | Deployment write, runtime none | Internal | App service principal receives no volume write access |
 
@@ -88,6 +89,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | A consumer UI makes the platform story clearer than a model workbench | The demo looks like a generic OTT clone | Build one complete home-screen prototype and run a five-minute walkthrough | A viewer can identify data, personalization, and governance moments without opening a notebook | Prototype completed; sales walkthrough pending |
 | The supplied interactions provide visibly different recommendations | Persona changes look random or identical | Compare recommendation overlap for representative users | At least half of the top-six titles differ between selected personas | Passed: `USR0001` and `USR0211` differed on all six titles |
 | SQL-backed requests are responsive enough for live switching | The demo pauses during persona changes | Measure warm API latency after Warehouse start | P95 below two seconds in the demo walkthrough | Passed: deployed warm P95 1.072 seconds over ten requests |
+| The current ranker has measurable offline quality | UI differences could be mistaken for validated relevance | Temporally hold out each eligible user's latest positive title and evaluate the deployed TypeScript ranker | Establish a reproducible baseline before choosing a target | Baseline on 2026-08-19: 298 users, Recall@10 0.0403, MRR@10 0.0141, NDCG@10 0.0201, coverage 0.8550; no production-quality claim |
 
 ## Decisions
 
@@ -100,6 +102,7 @@ Do not choose a stack from familiarity alone. Evaluate the user experience, Data
 | 2026-08-18 | Start with a deterministic explainable hybrid ranker | The interaction matrix is small and synthetic, so the MVP must not claim trained-model accuracy | Project team | Measure recommendation diversity and add AI Search only if it materially improves the demo |
 | 2026-08-19 | Deploy the MVP with five read-only Unity Catalog bindings | The app needs only profiles, movies, interactions, quality signals, and critic commentary; source data remains inaccessible at runtime | Project team | Run the stakeholder sales walkthrough |
 | 2026-08-19 | Add hybrid AI theme curation with a grounded candidate set | Multiple consumer-style themes improve realism while deterministic validation prevents hallucinated or watched titles | User and project team | Measure cold latency, topic diversity, and sales-demo clarity |
+| 2026-08-19 | Monitor recommendation quality and AI curation with MLflow | The deployed algorithm is TypeScript, so temporal backtesting and aggregate traces avoid a drifting Python duplicate while exposing quality and fallback trends | User and project team | Establish baseline thresholds after the first deployed evaluation |
 
 ## Open questions
 

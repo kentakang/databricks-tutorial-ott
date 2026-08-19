@@ -13,8 +13,14 @@ variables:
   serving_endpoint_name:
     description: Existing Databricks Foundation Model endpoint used for AI curation
     default: databricks-qwen3-next-80b-a3b-instruct
+  mlflow_experiment_name:
+    description: Workspace path for SceneFlow recommendation and AI curation monitoring
+    default: /Shared/media-ott-recommendations-monitoring
 
 resources:
+  experiments:
+    recommendation_monitoring:
+      name: ${var.mlflow_experiment_name}
   apps:
     app:
       name: 'media-ott-consumer-app'
@@ -33,6 +39,10 @@ resources:
           serving_endpoint:
             name: ${var.serving_endpoint_name}
             permission: CAN_QUERY
+        - name: mlflow-experiment
+          experiment:
+            experiment_id: ${resources.experiments.recommendation_monitoring.id}
+            permission: CAN_EDIT
         - name: consumer-profiles
           uc_securable:
             securable_full_name: ${var.catalog_name}.${var.schema_name}.consumer_profiles
