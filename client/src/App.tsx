@@ -5,6 +5,7 @@ import { DailyTasteBriefing } from './components/DailyTasteBriefing.js';
 import { Footer } from './components/Footer.js';
 import { Header } from './components/Header.js';
 import { HeroBillboard } from './components/HeroBillboard.js';
+import { MovieCard } from './components/MovieCard.js';
 import { MovieModal } from './components/MovieModal.js';
 import { MovieRail } from './components/MovieRail.js';
 import { QuickCategoryPills } from './components/QuickCategoryPills.js';
@@ -200,7 +201,7 @@ export default function App() {
   }, [allKnownMovies, searchQuery]);
 
   const handlePlay = (movie: MovieCardType) => {
-    showToast(`〈${movie.title}〉 초고화질 스트리밍 재생을 시작합니다.`, 'play');
+    showToast(`〈${movie.title}〉 재생을 시작합니다.`, 'play');
   };
 
   const handleSelectUser = (userId: string) => {
@@ -210,7 +211,7 @@ export default function App() {
     setSelectedUserId(userId);
     const user = users.find((u) => u.userId === userId);
     if (user) {
-      showToast(`${user.displayName} 님 프로필로 전환되었습니다.`, 'info');
+      showToast(`${user.displayName} 님으로 전환되었습니다.`, 'info');
     }
   };
 
@@ -242,7 +243,7 @@ export default function App() {
 
   return (
     <div className="ott-app-shell">
-      {/* Korean OTT Header */}
+      {/* Header */}
       <Header
         users={users}
         selectedUserId={selectedUserId}
@@ -262,69 +263,67 @@ export default function App() {
         <LoadingState changingProfile={Boolean(feed)} />
       ) : (
         <main className="ott-main-content">
-          {/* Active Navigation: MY (찜 목록) */}
+          {/* Active Navigation: MY (내가 찜한 콘텐츠 - 2D Grid) */}
           {activeNav === 'my' ? (
             <div className="my-list-page">
               <div className="my-list-header">
                 <div className="my-title-row">
-                  <Bookmark size={24} className="my-icon" />
-                  <h2>내가 찜한 콘텐츠 (MY)</h2>
+                  <Bookmark size={22} className="my-icon" />
+                  <h2>내가 찜한 콘텐츠</h2>
                 </div>
-                <p>
-                  {feed.profile.displayName} 님이 보고 싶어서 저장해 둔 작품 목록입니다 ({wishlistedMovies.length}편).
-                </p>
+                <p>총 {wishlistedMovies.length}개의 작품이 보관되어 있습니다.</p>
               </div>
               {wishlistedMovies.length > 0 ? (
-                <div className="my-grid">
+                <div className="ott-movie-grid">
                   {wishlistedMovies.map((movie) => (
-                    <div key={movie.movieId} className="my-grid-item">
-                      <MovieRail
-                        id={`my-item-${movie.movieId}`}
-                        title=""
-                        movies={[movie]}
-                        onSelect={setSelectedMovie}
-                        onPlay={handlePlay}
-                        wishlistIds={wishlistIds}
-                        onToggleWishlist={toggleWishlist}
-                      />
-                    </div>
+                    <MovieCard
+                      key={movie.movieId}
+                      movie={movie}
+                      onSelect={setSelectedMovie}
+                      onPlay={handlePlay}
+                      isWishlisted={wishlistIds.has(movie.movieId)}
+                      onToggleWishlist={toggleWishlist}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="my-empty-state">
-                  <Bookmark size={40} />
-                  <h3>아직 찜한 콘텐츠가 없어요</h3>
-                  <p>마음에 드는 작품 카드의 &apos;+ 찜하기&apos; 버튼을 눌러 나만의 보관함을 만들어 보세요.</p>
+                  <Bookmark size={36} />
+                  <h3>찜한 콘텐츠가 없습니다</h3>
+                  <p>마음에 드는 작품의 &apos;+ 찜하기&apos; 버튼을 눌러 보관해 보세요.</p>
                   <button type="button" className="ott-btn ott-btn-primary" onClick={() => setActiveNav('home')}>
-                    추천 홈으로 이동
+                    홈으로 이동
                   </button>
                 </div>
               )}
             </div>
           ) : searchQuery.trim().length >= 2 ? (
-            /* Search Results View */
+            /* Search Results View - 2D Grid */
             <div className="search-results-page">
               <div className="search-header">
                 <h2>
                   <Search size={22} /> “{searchQuery.trim()}” 검색 결과
                 </h2>
-                <p>총 {searchResults.length}개의 작품이 검색되었습니다.</p>
+                <p>총 {searchResults.length}개의 작품</p>
               </div>
               {searchResults.length > 0 ? (
-                <MovieRail
-                  id="search-rail"
-                  title="검색된 작품"
-                  movies={searchResults}
-                  onSelect={setSelectedMovie}
-                  onPlay={handlePlay}
-                  wishlistIds={wishlistIds}
-                  onToggleWishlist={toggleWishlist}
-                  showMatch
-                />
+                <div className="ott-movie-grid">
+                  {searchResults.map((movie) => (
+                    <MovieCard
+                      key={movie.movieId}
+                      movie={movie}
+                      onSelect={setSelectedMovie}
+                      onPlay={handlePlay}
+                      isWishlisted={wishlistIds.has(movie.movieId)}
+                      onToggleWishlist={toggleWishlist}
+                      showMatch
+                    />
+                  ))}
+                </div>
               ) : (
                 <div className="search-empty-state">
                   <Search size={36} />
-                  <p>일치하는 작품을 찾지 못했습니다. 다른 키워드로 검색해 보세요.</p>
+                  <p>일치하는 작품을 찾지 못했습니다.</p>
                 </div>
               )}
             </div>
@@ -348,16 +347,15 @@ export default function App() {
                 hasContinueWatching={feed.rails.continueWatching.length > 0}
               />
 
-              {/* Today's Personalized Taste Briefing Banner */}
+              {/* Taste Briefing Bar */}
               <DailyTasteBriefing feed={feed} />
 
-              {/* OTT Multi-Rail Carousel Section */}
+              {/* Content Rails */}
               <div className="ott-rails-stack">
-                {/* 1. Realtime TOP 10 Ranking Rail */}
+                {/* 1. Realtime TOP 10 Ranking */}
                 <MovieRail
                   id="trending-rail"
-                  title="지금 대한민국 TOP 10 랭킹"
-                  subtitle="실시간 완주율 · 평점 · 화제성을 종합한 인기 순위"
+                  title="지금 대한민국 TOP 10"
                   movies={feed.rails.trending}
                   onSelect={setSelectedMovie}
                   onPlay={handlePlay}
@@ -367,35 +365,27 @@ export default function App() {
                   badge="TOP 10"
                 />
 
-                {/* 2. AI Personalized Theme Rails (4 themes generated by Databricks Foundation Model) */}
+                {/* 2. AI Personalized Theme Rails */}
                 {feed.rails.aiThemes.map((theme, index) => (
                   <MovieRail
                     key={theme.themeId}
                     id={`ai-theme-${index}`}
                     title={theme.title}
-                    subtitle={theme.subtitle}
                     movies={theme.movies}
                     onSelect={setSelectedMovie}
                     onPlay={handlePlay}
                     wishlistIds={wishlistIds}
                     onToggleWishlist={toggleWishlist}
                     showMatch
-                    badge={
-                      feed.aiCuration.source === 'foundation-model'
-                        ? 'AI 맞춤 테마'
-                        : feed.aiCuration.source === 'ai-pending'
-                          ? 'AI 분석 중'
-                          : '취향 추천'
-                    }
+                    badge="맞춤 추천"
                   />
                 ))}
 
-                {/* 3. Continue Watching (if exists) */}
+                {/* 3. Continue Watching */}
                 {feed.rails.continueWatching.length > 0 && (
                   <MovieRail
                     id="continue-rail"
-                    title={`${feed.profile.displayName} 님이 시청 중인 콘텐츠`}
-                    subtitle="멈춘 장면부터 바로 이어서 시청해 보세요"
+                    title="시청 중인 콘텐츠"
                     movies={feed.rails.continueWatching}
                     onSelect={setSelectedMovie}
                     onPlay={handlePlay}
@@ -406,12 +396,11 @@ export default function App() {
                   />
                 )}
 
-                {/* 4. SceneFlow Originals Rail */}
+                {/* 4. SceneFlow Originals */}
                 {originalMovies.length > 0 && (
                   <MovieRail
                     id="originals-rail"
-                    title="오직 SceneFlow에서만! 독점 오리지널"
-                    subtitle="극장에서 볼 수 없는 차별화된 오리지널 명작 라인업"
+                    title="SceneFlow 오리지널"
                     movies={originalMovies}
                     onSelect={setSelectedMovie}
                     onPlay={handlePlay}
@@ -425,14 +414,13 @@ export default function App() {
                 {criticTopMovies.length > 0 && (
                   <MovieRail
                     id="critics-rail"
-                    title="평론가들이 만점을 던진 인생 명작"
-                    subtitle="검증된 전문 평론가 점수 80점 이상의 걸작 컬렉션"
+                    title="평론가 호평작"
                     movies={criticTopMovies}
                     onSelect={setSelectedMovie}
                     onPlay={handlePlay}
                     wishlistIds={wishlistIds}
                     onToggleWishlist={toggleWishlist}
-                    badge="CRITIC'S CHOICE"
+                    badge="CRITIC"
                   />
                 )}
               </div>
@@ -455,10 +443,10 @@ export default function App() {
         />
       )}
 
-      {/* Korean OTT Footer */}
+      {/* Footer */}
       <Footer />
 
-      {/* Toast Alert */}
+      {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
   );
@@ -470,14 +458,10 @@ function LoadingState({ changingProfile }: { changingProfile: boolean }) {
       <div className="loading-ambient-bg" />
       <div className="loading-card-box">
         <div className="loading-spinner-ring">
-          <Sparkles size={28} />
+          <Sparkles size={26} />
         </div>
-        <h2>
-          {changingProfile
-            ? 'Databricks AI가 새로운 맞춤 편성을 구성하는 중...'
-            : 'SceneFlow 개인화 홈을 불러오는 중입니다'}
-        </h2>
-        <p>Unity Catalog 시청 이력과 Lakehouse 거버넌스 데이터를 분석하여 최적의 추천 테마를 편성하고 있습니다.</p>
+        <h2>{changingProfile ? '맞춤 편성을 준비하고 있습니다...' : '콘텐츠를 불러오는 중입니다'}</h2>
+        <p>회원님의 취향에 맞춘 추천 컬렉션을 구성하고 있습니다.</p>
       </div>
     </div>
   );
@@ -487,12 +471,12 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return (
     <div className="ott-error-container" role="alert">
       <div className="error-icon-circle">
-        <AlertCircle size={32} />
+        <AlertCircle size={28} />
       </div>
-      <h2>일시적으로 연결이 원활하지 않습니다</h2>
+      <h2>연결에 실패했습니다</h2>
       <p>{message}</p>
       <button type="button" className="ott-btn ott-btn-primary" onClick={onRetry}>
-        <RotateCcw size={16} /> 다시 연결하기
+        <RotateCcw size={15} /> 다시 시도
       </button>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Database, Headphones, HelpCircle, Shield, Sparkles } from 'lucide-react';
+import { Headphones, HelpCircle } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -11,7 +11,7 @@ export function Footer() {
               <Headphones size={16} />
               <span>고객센터 1588-0000</span>
             </div>
-            <span className="cs-hours">운영시간: 365일 24시간 연중무휴 (시연용)</span>
+            <span className="cs-hours">운영시간: 365일 24시간 연중무휴</span>
           </div>
 
           <div className="footer-links-row">
@@ -33,31 +33,13 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Legal & Business Entity Info (Korean OTT standard) */}
+        {/* Legal & Business Entity Info */}
         <div className="footer-corp-info">
           <p>
-            <strong>SceneFlow (시즌플로우) 주식회사</strong> · 대표이사: Databricks AI Demo Team · 사업자등록번호:
-            123-45-67890 · 통신판매업신고: 2026-서울강남-0000호
+            <strong>SceneFlow 주식회사</strong> · 대표이사: OTT 시연 데모 · 사업자등록번호: 123-45-67890 ·
+            통신판매업신고: 2026-서울강남-0000호
           </p>
-          <p>
-            주소: 서울특별시 강남구 테헤란로 123 데이터브릭스타워 18층 · 호스팅 서비스: Databricks Apps &amp; Serverless
-            Lakehouse
-          </p>
-        </div>
-
-        {/* Databricks Demo Compliance & Architecture Banner */}
-        <div className="footer-databricks-notice">
-          <div className="notice-left">
-            <Database size={15} className="db-icon" />
-            <span>
-              <strong>Databricks Enterprise Architecture:</strong> Powered by Unity Catalog Governed Behavioral Lineage
-              &amp; Foundation Model Endpoint (<code className="code-tag">databricks-qwen3-next-80b-a3b-instruct</code>
-              ).
-            </span>
-          </div>
-          <div className="security-tag">
-            <Shield size={13} /> Read-Only Governed Sandbox
-          </div>
+          <p>주소: 서울특별시 강남구 테헤란로 123 18층 · 호스팅 서비스: Databricks Apps</p>
         </div>
 
         {/* Copyright */}
@@ -65,9 +47,6 @@ export function Footer() {
           <p className="copyright-text">
             © 2026 SceneFlow Inc. All rights reserved. 본 애플리케이션은 Databricks App 시연용으로 제작되었습니다.
           </p>
-          <div className="brand-signature">
-            <Sparkles size={13} /> Databricks Apps · React 19 · Serverless Lakehouse
-          </div>
         </div>
       </div>
     </footer>

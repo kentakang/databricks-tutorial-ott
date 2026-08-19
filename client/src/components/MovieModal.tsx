@@ -95,7 +95,7 @@ export function MovieModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Extract related movies (same genre or director, excluding current)
+  // Extract related movies
   const relatedMovies = useMemo(() => {
     return allMovies
       .filter((m) => m.movieId !== movie.movieId)
@@ -130,7 +130,7 @@ export function MovieModal({
           <X size={20} />
         </button>
 
-        {/* Modal Top Banner (Backdrop Visual) */}
+        {/* Modal Top Banner */}
         <div className="modal-hero-banner">
           <div className="modal-banner-gradient" />
           <div className="modal-banner-art">
@@ -144,7 +144,7 @@ export function MovieModal({
           {/* Quick CTA on Top Banner */}
           <div className="modal-hero-cta">
             <button type="button" className="ott-btn ott-btn-primary" onClick={() => onPlay(movie)}>
-              <Play size={18} fill="currentColor" /> 지금 재생하기
+              <Play size={18} fill="currentColor" /> 바로보기
             </button>
             <button
               type="button"
@@ -169,7 +169,7 @@ export function MovieModal({
               onClick={() => {
                 if (navigator.clipboard) {
                   void navigator.clipboard.writeText(window.location.href).catch(() => {});
-                  alert('작품 링크가 클립보드에 복사되었습니다.');
+                  alert('작품 링크가 복사되었습니다.');
                 }
               }}
             >
@@ -178,13 +178,13 @@ export function MovieModal({
           </div>
         </div>
 
-        {/* Modal Main Content Container */}
+        {/* Modal Main Content */}
         <div className="modal-scroll-body">
           {/* Metadata Specs Bar */}
           <div className="modal-meta-bar">
             <div className="meta-left">
               <span className="match-pill">
-                <Sparkles size={12} /> {movie.matchScore}% 취향 일치
+                <Sparkles size={12} /> {movie.matchScore}% 일치
               </span>
               <RatingBadge rating={movie.contentRating} size="md" showText />
               <span className="meta-spec">
@@ -196,10 +196,10 @@ export function MovieModal({
               <span className="meta-spec tech">4K UHD</span>
               <span className="meta-spec tech">5.1ch</span>
             </div>
-            {movie.isPlatformOriginal && <span className="badge-original-text">SCENEFLOW ORIGINAL</span>}
+            {movie.isPlatformOriginal && <span className="badge-original-text">SCENEFLOW ONLY</span>}
           </div>
 
-          {/* Navigation Tabs (Korean OTT standard) */}
+          {/* Navigation Tabs */}
           <div className="modal-tabs-nav" role="tablist">
             <button
               type="button"
@@ -208,7 +208,7 @@ export function MovieModal({
               className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
               onClick={() => setActiveTab('info')}
             >
-              <Info size={15} /> 작품 상세 & AI 추천 사유
+              <Info size={15} /> 작품 정보
             </button>
             <button
               type="button"
@@ -226,7 +226,7 @@ export function MovieModal({
               className={`tab-btn ${activeTab === 'critics' ? 'active' : ''}`}
               onClick={() => setActiveTab('critics')}
             >
-              <Star size={15} /> 평론가 칼럼 ({reviews ? reviews.criticReviews.length : '·'})
+              <Star size={15} /> 평론가 평 ({reviews ? reviews.criticReviews.length : '·'})
             </button>
             <button
               type="button"
@@ -235,23 +235,23 @@ export function MovieModal({
               className={`tab-btn ${activeTab === 'related' ? 'active' : ''}`}
               onClick={() => setActiveTab('related')}
             >
-              <Film size={15} /> 비슷한 콘텐츠 ({relatedMovies.length})
+              <Film size={15} /> 비슷한 작품 ({relatedMovies.length})
             </button>
           </div>
 
-          {/* Tab 1: Detailed Info & AI Grounded Evidence */}
+          {/* Tab 1: Info */}
           {activeTab === 'info' && (
             <div className="tab-pane tab-info-pane">
               {/* Synopsis */}
               <div className="synopsis-section">
-                <h3 className="section-title">작품 줄거리</h3>
+                <h3 className="section-title">줄거리</h3>
                 <p className="synopsis-text">{movie.logline}</p>
               </div>
 
               {/* Keywords Tag Cloud */}
               <div className="keywords-cloud">
                 <span className="keyword-label">
-                  <Hash size={13} /> 테마 키워드:
+                  <Hash size={13} /> 키워드:
                 </span>
                 <div className="tags-list">
                   {keywordTags.map((tag) => (
@@ -263,12 +263,11 @@ export function MovieModal({
                 </div>
               </div>
 
-              {/* Databricks AI Recommendation Evidence Grid */}
+              {/* Recommendation Key Points */}
               <div className="ai-evidence-section">
                 <div className="evidence-header">
-                  <Sparkles size={16} className="evidence-sparkle" />
-                  <h4>Databricks AI 알고리즘 추천 근거</h4>
-                  <span className="evidence-sub">Lakehouse Behavioral Analytics</span>
+                  <Sparkles size={15} className="evidence-sparkle" />
+                  <h4>이 작품의 추천 포인트</h4>
                 </div>
                 <div className="evidence-grid">
                   {movie.evidence.map((item) => (
@@ -280,7 +279,7 @@ export function MovieModal({
                 </div>
               </div>
 
-              {/* Production Facts Table */}
+              {/* Facts Table */}
               <div className="facts-section">
                 <h4 className="section-title">상세 정보</h4>
                 <div className="facts-grid">
@@ -308,7 +307,7 @@ export function MovieModal({
                   </div>
                   <div className="fact-item">
                     <span className="fact-label">
-                      <Star size={13} /> 주요 갈등
+                      <Star size={13} /> 테마
                     </span>
                     <span className="fact-value">{movie.coreConflict}</span>
                   </div>
@@ -358,7 +357,7 @@ export function MovieModal({
               ) : (
                 <div className="empty-tab-box">
                   <MessageSquare size={24} />
-                  <p>등록된 시청자 리뷰가 아직 없습니다.</p>
+                  <p>등록된 시청자 리뷰가 없습니다.</p>
                 </div>
               )}
             </div>
@@ -370,7 +369,7 @@ export function MovieModal({
               {loading ? (
                 <div className="tab-status-message">
                   <span className="spinner" />
-                  평론가 칼럼을 불러오는 중입니다...
+                  평론가 평을 불러오는 중입니다...
                 </div>
               ) : error ? (
                 <div className="tab-status-message error">
@@ -392,13 +391,13 @@ export function MovieModal({
                           </div>
                           <span className="grade-badge">{critic.letterGrade}</span>
                         </div>
-                        {critic.isTopCritic && <span className="top-critic-pill">⭐ TOP CRITIC</span>}
+                        {critic.isTopCritic && <span className="top-critic-pill">TOP CRITIC</span>}
                       </div>
                       <h5 className="critic-title">“{critic.reviewTitle}”</h5>
                       <p className="critic-body">{critic.reviewText}</p>
                       <div className="critic-footer">
                         <span className="critic-author">
-                          <strong>{critic.penName}</strong> 평론가 ({critic.publicationName})
+                          <strong>{critic.penName}</strong> ({critic.publicationName})
                         </span>
                         <time className="critic-date">{formatReviewDate(critic.reviewedAt)}</time>
                       </div>
@@ -408,7 +407,7 @@ export function MovieModal({
               ) : (
                 <div className="empty-tab-box">
                   <Star size={24} />
-                  <p>등록된 평론가 평론이 아직 없습니다.</p>
+                  <p>등록된 평론가 평론이 없습니다.</p>
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { Bell, Check, ChevronDown, Compass, Film, Flame, Search, Sparkles, Tv, UserCheck, X } from 'lucide-react';
+import { Check, ChevronDown, Compass, Film, Flame, Search, Sparkles, Tv, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatGenre, formatPlan, type UserSummary } from '../lib/ott-helpers.js';
 
@@ -13,8 +13,6 @@ interface HeaderProps {
   onNavChange: (nav: string) => void;
   wishlistCount: number;
 }
-
-const POPULAR_TAGS = ['#실시간TOP10', '#오리지널독점', '#SF블록버스터', '#평론가극찬', '#주말몰아보기'];
 
 export function Header({
   users,
@@ -57,7 +55,7 @@ export function Header({
   return (
     <header className="ott-header">
       <div className="header-inner">
-        {/* Brand Logo */}
+        {/* Brand Logo & Main Nav */}
         <div className="brand-group">
           <a
             href="#top"
@@ -73,10 +71,7 @@ export function Header({
               <span className="bar bar-2" />
               <span className="bar bar-3" />
             </div>
-            <div className="logo-text">
-              <span className="brand-name">SceneFlow</span>
-              <span className="brand-badge">시즌플로우</span>
-            </div>
+            <span className="brand-name">SceneFlow</span>
           </a>
 
           {/* GNB Navigation */}
@@ -133,7 +128,7 @@ export function Header({
           </nav>
         </div>
 
-        {/* Right Section */}
+        {/* Right Actions */}
         <div className="header-actions">
           {/* Search bar */}
           <div className={`search-container ${searchOpen || searchQuery ? 'open' : ''}`}>
@@ -151,7 +146,7 @@ export function Header({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="제목, 장르, 감독, 키워드 검색"
+                placeholder="제목, 장르, 감독 검색"
                 aria-label="작품 검색"
               />
               {searchQuery && (
@@ -167,34 +162,14 @@ export function Header({
             </div>
           </div>
 
-          {/* Quick Popular Keywords (Desktop only) */}
-          <div className="popular-tags-bar" aria-label="추천 검색어">
-            {POPULAR_TAGS.slice(0, 3).map((tag) => (
-              <button key={tag} type="button" className="tag-pill" onClick={() => onSearchChange(tag.replace('#', ''))}>
-                {tag}
-              </button>
-            ))}
-          </div>
-
-          {/* Notification Icon */}
-          <button
-            type="button"
-            className="icon-action-btn"
-            aria-label="알림"
-            title="새로운 AI 추천 테마가 업데이트되었습니다."
-          >
-            <Bell size={18} />
-            <span className="notif-dot" />
-          </button>
-
-          {/* Profile & Persona Switcher (Korean OTT style) */}
+          {/* Profile & Persona Switcher */}
           <div className="profile-dropdown-wrapper" ref={profileRef}>
             <button
               type="button"
               className={`profile-button ${profileMenuOpen ? 'active' : ''}`}
               onClick={() => setProfileMenuOpen((prev) => !prev)}
               aria-expanded={profileMenuOpen}
-              aria-label="프로필 및 시연 사용자 전환"
+              aria-label="프로필 전환"
             >
               <div className="profile-avatar">{selectedUser ? selectedUser.displayName.slice(0, 1) : 'U'}</div>
               <div className="profile-info-text">
@@ -210,17 +185,12 @@ export function Header({
             {profileMenuOpen && (
               <div className="profile-menu-popover" role="menu">
                 <div className="popover-header">
-                  <div className="demo-notice-badge">
-                    <Sparkles size={12} /> Databricks AI 개인화 시연
-                  </div>
-                  <p className="popover-desc">
-                    시연 대상 페르소나를 변경하면 Databricks 모델이 실시간으로 홈 구성을 재편성합니다.
-                  </p>
+                  <span className="popover-title">프로필 전환</span>
                 </div>
 
-                <div className="persona-list" role="group" aria-label="데모 페르소나 선택">
+                <div className="persona-list" role="group" aria-label="프로필 선택">
                   {loading ? (
-                    <div className="popover-loading">페르소나 목록 로딩 중...</div>
+                    <div className="popover-loading">프로필 목록을 불러오는 중...</div>
                   ) : (
                     users.map((user) => {
                       const isCurrent = user.userId === selectedUserId;
@@ -249,10 +219,9 @@ export function Header({
                 </div>
 
                 <div className="popover-footer">
-                  <div className="ai-engine-tag">
-                    <UserCheck size={13} />
-                    <span>Lakehouse Behavioral Lineage Active</span>
-                  </div>
+                  <span className="popover-footer-note">
+                    <Sparkles size={12} /> 시연용 프로필 전환 시 맞춤 추천이 즉시 변경됩니다.
+                  </span>
                 </div>
               </div>
             )}

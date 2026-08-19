@@ -13,14 +13,7 @@ interface HeroBillboardProps {
   onToggleWishlist: (movie: MovieCard) => void;
 }
 
-export function HeroBillboard({
-  movie,
-  profileName,
-  onPlay,
-  onDetails,
-  isWishlisted,
-  onToggleWishlist,
-}: HeroBillboardProps) {
+export function HeroBillboard({ movie, onPlay, onDetails, isWishlisted, onToggleWishlist }: HeroBillboardProps) {
   const [isMuted, setIsMuted] = useState(true);
 
   return (
@@ -48,24 +41,19 @@ export function HeroBillboard({
 
       {/* Hero Content Info (Left side) */}
       <div className="billboard-content">
-        {/* Top Badges */}
+        {/* Top Badge */}
         <div className="billboard-badges">
           {movie.isPlatformOriginal ? (
-            <span className="badge-original">
-              <Sparkles size={13} /> SCENEFLOW ONLY 독점
-            </span>
+            <span className="badge-original">SCENEFLOW ONLY</span>
           ) : (
-            <span className="badge-trending">🔥 오늘 대한민국 TOP 10 1위</span>
+            <span className="badge-trending">오늘 대한민국 TOP 10</span>
           )}
-          <span className="badge-ai-curated">
-            <Sparkles size={12} /> {profileName}님을 위한 오늘의 AI 픽
-          </span>
         </div>
 
-        {/* Big Title */}
+        {/* Title */}
         <h1 className="billboard-title">{movie.title}</h1>
 
-        {/* Meta Info Bar (Korean OTT standard) */}
+        {/* Meta Info Bar */}
         <div className="billboard-meta">
           <span className="match-score-badge">
             <Sparkles size={13} /> {movie.matchScore}% 일치
@@ -80,7 +68,6 @@ export function HeroBillboard({
           <div className="tech-tags">
             <span className="tech-tag">4K UHD</span>
             <span className="tech-tag">HDR10+</span>
-            <span className="tech-tag">5.1ch</span>
           </div>
           <span className="genre-label">
             {formatGenre(movie.primaryGenre)} · {movie.genreDetail}
@@ -89,16 +76,6 @@ export function HeroBillboard({
 
         {/* Synopsis / Logline */}
         <p className="billboard-logline">{movie.logline}</p>
-
-        {/* AI Grounded Reason Tagline */}
-        <div className="billboard-ai-reason">
-          <div className="ai-reason-icon">
-            <Sparkles size={15} />
-          </div>
-          <p className="ai-reason-text">
-            <strong>Databricks AI 추천 사유:</strong> {movie.reason}
-          </p>
-        </div>
 
         {/* CTA Action Buttons */}
         <div className="billboard-actions">
